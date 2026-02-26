@@ -193,6 +193,13 @@ export default class ATOZVER6Plugin extends Plugin {
          * 각 단계를 명시적으로 순서대로 await 처리합니다.
          */
         this.app.workspace.onLayoutReady(async () => {
+            // 이미 열려 있는 탭이 작업 파일이면 초기화 로직 건너뛰기
+            const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+            if (activeView && activeView.file?.path === this.settings.taskFilePath) {
+                return;
+            }
+            
+            // 모든 탭 닫기 -> 작업 파일 백업 및 초기화 -> 작업 파일 열기 순으로 진행
             const result = await this.readWorkContent();
             if (!result) return;
             if (result.content.trim()) {
@@ -229,7 +236,7 @@ export default class ATOZVER6Plugin extends Plugin {
             // 언로드 시점에 미저장 변경사항이 있을 수 있으므로 동기 저장 시도
             this.saveSettings();
         }
-        
+
         // CyclePinTab 관련 상태 초기화
         this.lastPinnedPath = null;
         this.lastUnpinnedPath = null;
