@@ -317,7 +317,8 @@ export default class ATOZVER6Plugin extends Plugin {
 
     registerCommands() {
     	// [CertainMd]
-    	this.addCommand({ id: 'open-certain-md', name: '특정 md 파일 열기', callback: () => this.openCertainMdFile()});
+    	this.addCommand({ id: 'open-certain-md', name: '특정 마크다운 파일 열기', callback: () => this.openCertainMdFile()});
+
         // [CursorCenter]
         this.addCommand({ id: 'toggle-cursor-center', name: '커서 중앙 유지 토글', callback: () => this.toggleCursorCenter()});
 
