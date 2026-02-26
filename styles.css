@@ -39,12 +39,6 @@
     color: var(--text-normal);
 }
 
-/* mobiletoolbar off */
-body.mobile-toolbar-off .mobile-toolbar,
-body.mobile-toolbar-off .mobile-toolbar-container {
-    display: none !important;
-}
-
 /* cut-create-modal */
 .cut-create-error {
     color: var(--text-error);

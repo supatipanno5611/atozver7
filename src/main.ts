@@ -170,9 +170,6 @@ export default class ATOZVER6Plugin extends Plugin {
     // 플러그인 로드 시 실행
     async onload() {
         await this.loadSettings();
-        // 모바일 툴바는 플러그인 로드 시 기본적으로 켜진 상태로 시작하도록 설정
-        document.body.classList.remove('mobile-toolbar-off');
-
         // --- 설정 탭 등록 ---
         this.addSettingTab(new ATOZSettingTab(this.app, this));
 
@@ -232,8 +229,7 @@ export default class ATOZVER6Plugin extends Plugin {
             // 언로드 시점에 미저장 변경사항이 있을 수 있으므로 동기 저장 시도
             this.saveSettings();
         }
-        // 모바일 툴바 클래스 제거 (플러그인 언로드 시 원래 상태로 복원)
-        document.body.classList.remove('mobile-toolbar-off');
+        
         // CyclePinTab 관련 상태 초기화
         this.lastPinnedPath = null;
         this.lastUnpinnedPath = null;
@@ -341,9 +337,6 @@ export default class ATOZVER6Plugin extends Plugin {
         // [Graph]
         this.addCommand({ id: 'open-localgraph-in-sidebar', name: '오른쪽 사이드바에 로컬 그래프뷰 열기', callback: () => this.toggleLocalGraphInSidebar() });
         this.addCommand({ id: 'open-graph-in-sidebar', name: '오른쪽 사이드바에 그래프뷰 열기', callback: () => this.toggleGlobalGraphInSidebar() });
-
-        // [MobileToolbar]
-        this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 토글', callback: () => { document.body.classList.toggle('mobile-toolbar-off'); } });
 
         // [MoveCursor]
         this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursorToEnd(editor) });
