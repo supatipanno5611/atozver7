@@ -249,13 +249,7 @@ export default class ATOZVER6Plugin extends Plugin {
     // 설정 로드/저장
     async loadSettings() {
         const loadedData = await this.loadData();
-        // 중첩 객체 병합 (Properties userproperties 등)
         this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
-        if (loadedData?.userproperties) {
-            this.settings.userproperties = {
-                ...DEFAULT_SETTINGS.userproperties,
-                ...loadedData.userproperties
-            };
         }
     }
 
