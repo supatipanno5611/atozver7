@@ -9,10 +9,6 @@ import {
 
 // 1. Settings Inteface Integration
 interface ATOZSettings {
-    // Auto Date
-    AutoDateCopyPaths: string[];
-    AutoDateCopyFormat: string;
-
     // Certain Md
     CertainMdPath: string;
     
@@ -68,12 +64,6 @@ interface ParsedDocument {
 
 // 2. Default Settings
 const DEFAULT_SETTINGS: ATOZSettings = {
-    // Auto Date
-    AutoDateCopyPaths: [
-        "how/viriya 운영법.md"
-    ],
-    AutoDateCopyFormat: "YYYY-MM-DD",
-
     // CertainMd
     CertainMdPath: 'how/termux.md',
 
@@ -345,6 +335,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({
             id: 'go-to-previous-heading',
             name: '이전 heading으로 이동',
+            icon: 'lucide-square-chevron-up',
             editorCallback: (editor: Editor, view: MarkdownView) => {
                 this.moveHeading(editor, view, 'prev');
             },
@@ -354,6 +345,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({
             id: 'go-to-next-heading',
             name: '다음 heading으로 이동',
+            icon: 'lucide-square-chevron-down',
             editorCallback: (editor: Editor, view: MarkdownView) => {
                 this.moveHeading(editor, view, 'next');
             },
