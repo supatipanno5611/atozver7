@@ -134,9 +134,6 @@ export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
 
     // --- State Variables ---
-
-    // Auto Date State
-    private originalWriteText: any;
     
     // CyclePinnedTabs State
     private lastPinnedPath: string | null = null;
@@ -230,10 +227,6 @@ export default class ATOZVER6Plugin extends Plugin {
         // CyclePinTab 관련 상태 초기화
         this.lastPinnedPath = null;
         this.lastUnpinnedPath = null;
-        // Auto Date 관련 상태 초기화
-        if (this.originalWriteText) {
-            navigator.clipboard.writeText = this.originalWriteText;
-        }
     }
 
     // 설정 로드/저장
@@ -399,53 +392,6 @@ export default class ATOZVER6Plugin extends Plugin {
     }
 
     registerEvents() {
-        // [Auto Date]
-        // [기능 1] 드래그 + 단축키 복사 처리
-        this.registerDomEvent(document, 'copy', (evt: ClipboardEvent) => {
-            const activeFile = this.app.workspace.getActiveFile();
-            if (!activeFile || !this.settings.AutoDateCopyPaths.includes(activeFile.path)) return;
-
-            const selectionObj = window.getSelection();
-            if (!selectionObj || selectionObj.rangeCount === 0) return;
-            
-            const selectionText = selectionObj.toString();
-            const targetFormat = this.settings.AutoDateCopyFormat;
-
-            // 설정된 포맷 문자열이 포함되어 있는지 확인
-            if (!selectionText.includes(targetFormat)) return;
-
-            const today = moment().format(targetFormat);
-            
-            // 정규식 특수문자 에러를 방지하기 위해 split.join을 사용해 전체 문자열 치환
-            const newText = selectionText.split(targetFormat).join(today);
-
-            if (evt.clipboardData) {
-                evt.clipboardData.setData('text/plain', newText);
-                evt.preventDefault(); 
-                evt.stopPropagation(); 
-                
-                new Notice('단축키 복사: 날짜가 오늘로 변환되었습니다!');
-            }
-        }, { capture: true }); 
-
-        // [기능 2] '복사' 버튼 처리 (클립보드 API 하이재킹)
-        this.originalWriteText = navigator.clipboard.writeText; 
-        
-        navigator.clipboard.writeText = async (text: string) => {
-            const activeFile = this.app.workspace.getActiveFile();
-            const targetFormat = this.settings.AutoDateCopyFormat;
-            
-            // 지정된 경로 파일이고, 복사될 내용에 설정된 포맷이 있다면
-            if (activeFile && this.settings.AutoDateCopyPaths.includes(activeFile.path) && text.includes(targetFormat)) {
-                const today = moment().format(targetFormat);
-                text = text.split(targetFormat).join(today);
-                
-                new Notice('버튼 복사: 날짜가 오늘로 변환되었습니다!');
-            }
-            
-            return this.originalWriteText.call(navigator.clipboard, text);
-        };
-
         // [CursorCenter]
         this.registerEvent(
             this.app.workspace.on('editor-change', (editor) => {
@@ -1020,9 +966,15 @@ export default class ATOZVER6Plugin extends Plugin {
         // 이미 열려 있는 탭이 있다면 focus, 없으면 현재 탭에서 열기
         const existingLeaf = this.app.workspace.getLeavesOfType("markdown")
             .find(leaf => (leaf.view as MarkdownView).file?.path === path);
+        let targetLeaf: WorkspaceLeaf;
 
-        const targetLeaf = existingLeaf || this.app.workspace.getLeaf(false);
-        await targetLeaf.openFile(file);
+        if (existingLeaf) {
+        	targetLeaf = existingLeaf;
+        	this.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
+        } else {
+        	targetLeaf = this.app.workspace.getLeaf(false);
+        	await targetLeaf.openFile(file);
+        }
 
         // 헤더 추가
         const editor = (targetLeaf.view as MarkdownView).editor;
