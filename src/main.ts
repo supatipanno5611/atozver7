@@ -5,6 +5,7 @@ import {
     prepareFuzzySearch, SuggestModal, PluginSettingTab, Setting, FileView, stringifyYaml, Modal
 } from 'obsidian';
 import { ATOZSettings, SnippetsItem, SymbolItem, ParsedDocument, DEFAULT_SETTINGS } from './types';
+import { escapeRegex, buildTriggerRegex } from './utils';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -1993,21 +1994,6 @@ export default class ATOZVER6Plugin extends Plugin {
 // =========================================================================
 // 3. Helper Classes & Functions
 // =========================================================================
-
-// snippets, symbols 공통 helper 함수
-// 트리거 regex 기호 escape 함수
-function escapeRegex(s: string) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function buildTriggerRegex(trigger: string): RegExp {
-    const escaped = escapeRegex(trigger);
-
-    // character class 는 반드시 single char 기준
-    const first = escaped[0]; // 트리거가 여러 글자일 때 첫 글자만 사용
-
-    return new RegExp(`${escaped}([^${first}\\s]*)$`);
-}
 
 // snippets
 // EditorSuggest 를 상속해서 Obsidian suggestion 시스템에 연결
