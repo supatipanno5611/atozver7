@@ -90,13 +90,21 @@ export default class ATOZVER6Plugin extends Plugin {
          * 각 단계를 명시적으로 순서대로 await 처리합니다.
          */
         this.app.workspace.onLayoutReady(async () => {
-            // 이미 열려 있는 탭이 작업 파일이면 초기화 로직 건너뛰기
             const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-            if (activeView && activeView.file?.path === this.settings.taskFilePath) {
+            const activePath = activeView?.file?.path;
+
+            // task 파일이 열려 있으면 초기화 로직 건너뛰기
+            if (activePath === this.settings.taskFilePath) {
                 return;
             }
 
-            // 모든 탭 닫기 -> 작업 파일 백업 및 초기화 -> 작업 파일 열기 순으로 진행
+            // ordinary 파일이 열려 있으면 날짜 헤더 + 스크롤만 처리
+            if (activePath === this.settings.ordinaryFilePath) {
+                await this.ordinary.openFileOrdinary();
+                return;
+            }
+
+            // work.md 백업 및 초기화
             const result = await this.work.readWorkContent();
             if (!result) return;
             if (result.content.trim()) {
@@ -104,20 +112,25 @@ export default class ATOZVER6Plugin extends Plugin {
                 if (!success) return;
             }
 
-            // 이미 열린 work 탭이 있으면 재사용, 없으면 새로 열기
+            // work 탭 수집 → 중복 제거 후 하나만 활성화
             const workPath = this.settings.workFilePath;
-            let existingLeaf: WorkspaceLeaf | null = null;
+            const workLeaves: WorkspaceLeaf[] = [];
             this.app.workspace.iterateRootLeaves((leaf) => {
                 if (leaf.view instanceof MarkdownView &&
                     leaf.view.file?.path === workPath) {
-                    existingLeaf = leaf;
+                    workLeaves.push(leaf);
                 }
             });
 
-            if (existingLeaf) {
-                const leaf = existingLeaf as WorkspaceLeaf;
-                this.app.workspace.setActiveLeaf(leaf, { focus: true });
-                (leaf.view as MarkdownView).editor.focus();
+            // 첫 번째만 남기고 나머지 닫기
+            const firstLeaf = workLeaves[0];
+            for (const leaf of workLeaves.slice(1)) {
+                leaf.detach();
+            }
+
+            if (firstLeaf) {
+                this.app.workspace.setActiveLeaf(firstLeaf, { focus: true });
+                (firstLeaf.view as MarkdownView).editor.focus();
             } else {
                 await this.work.openWorkFile();
             }
