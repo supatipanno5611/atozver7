@@ -145,6 +145,9 @@ export default class ATOZVER6Plugin extends Plugin {
             this.saveTimer = null;
             this.saveSettings();
         }
+
+        // 플러그인 비활성화 시 스타일이 남아있지 않도록 클래스 제거
+        document.body.classList.remove('mobile-toolbar-off');
     }
 
     // 설정 로드/저장
@@ -261,6 +264,16 @@ export default class ATOZVER6Plugin extends Plugin {
                 this.headingNavigater.moveHeading(editor, view, 'next');
             },
         });
+
+        // [MobileToolbar]
+        this.addCommand({
+            id: 'toggle-mobile-toolbar',
+            name: '모바일 툴바 토글',
+            callback: () => {
+                document.body.classList.toggle('mobile-toolbar-off');
+            }
+        });
+        
 
         // [MoveCursor]
         this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
