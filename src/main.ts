@@ -1,6 +1,6 @@
 import {
     Plugin, App, Editor, MarkdownView, WorkspaceLeaf, Notice, TFile,
-    PluginSettingTab, Setting
+    PluginSettingTab, Setting, Platform
 } from 'obsidian';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 import { SelectionFeature } from './features/Selection';
@@ -90,6 +90,12 @@ export default class ATOZVER6Plugin extends Plugin {
          * 각 단계를 명시적으로 순서대로 await 처리합니다.
          */
         this.app.workspace.onLayoutReady(async () => {
+            // [MobileToolbar] 태블릿이면 툴바 숨기기
+            if (Platform.isMobileApp && window.screen.width >= 800) {
+                    document.body.classList.add('mobile-toolbar-off');
+            }
+
+            // Work Plugin
             const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
             const activePath = activeView?.file?.path;
 
@@ -205,7 +211,6 @@ export default class ATOZVER6Plugin extends Plugin {
 
         // [Work]
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', async () => {
-            await this.work.cleanupTabs();
             const result = await this.work.readWorkContent();
             if (!result) return;
             if (result.content.trim()) {
@@ -309,7 +314,6 @@ export default class ATOZVER6Plugin extends Plugin {
 
         // [Work]
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: async () => {
-            await this.work.cleanupTabs();
             const result = await this.work.readWorkContent();
             if (!result) return;
             if (result.content.trim()) {

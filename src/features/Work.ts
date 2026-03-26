@@ -105,31 +105,37 @@ export class WorkFeature {
     async openWorkFile() {
         const { workspace, vault } = this.plugin.app;
         const path = this.plugin.settings.workFilePath;
-
+    
         try {
             const targetFile = vault.getAbstractFileByPath(path);
-
+    
             if (!(targetFile instanceof TFile)) {
                 new Notice(`파일을 찾을 수 없습니다: ${path}`);
                 return;
             }
-
-            // cleanupTabs 직후에는 활성 탭이 없을 수 있으므로
-            // getLeaf(true)로 현재 탭이 없으면 새 탭을 생성하도록 합니다.
-            const leaf = workspace.getLeaf(true);
-            await leaf.openFile(targetFile);
-
-            // 탭 활성화
+    
+            // 사이드바를 제외한 메인 영역(rootSplit)에서만 탐색합니다.
+            // getLeavesOfType('markdown')은 사이드바까지 포함하므로 사용하지 않습니다.
+            let existingLeaf: WorkspaceLeaf | null = null;
+            workspace.iterateRootLeaves((leaf) => {
+                if (!existingLeaf && leaf.view instanceof MarkdownView &&
+                    leaf.view.file?.path === path) {
+                    existingLeaf = leaf;
+                }
+            });
+    
+            // 이미 열린 탭이 있으면 openFile() 없이 포커스만 이동합니다.
+            // openFile()을 다시 호출하면 vault에서 파일을 재로드하여 미저장 변경사항이 사라질 수 있습니다.
+            const leaf = existingLeaf ?? workspace.getLeaf(true);
+            if (!existingLeaf) await leaf.openFile(targetFile);
+    
             workspace.setActiveLeaf(leaf, { focus: true });
-
-            // 에디터 강제 포커스 및 커서 이동
+    
             const view = leaf.view;
             if (view instanceof MarkdownView) {
-
-                // 에디터 입력창에 포커스를 줍니다 (커서 깜빡임 활성화)
                 view.editor.focus();
             }
-
+    
         } catch (error) {
             new Notice('작업 문서를 여는 중 오류가 발생했습니다.');
         }
