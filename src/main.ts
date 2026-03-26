@@ -269,17 +269,7 @@ export default class ATOZVER6Plugin extends Plugin {
                 this.headingNavigater.moveHeading(editor, view, 'next');
             },
         });
-
-        // [MobileToolbar]
-        this.addCommand({
-            id: 'toggle-mobile-toolbar',
-            name: '모바일 툴바 토글',
-            callback: () => {
-                document.body.classList.toggle('mobile-toolbar-off');
-            }
-        });
         
-
         // [MoveCursor]
         this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
         this.addCommand({ id: 'move-cursor-to-start', name: '커서를 문서 처음으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToStart(editor) });
