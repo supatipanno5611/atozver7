@@ -1,6 +1,7 @@
 import type ATOZVER6Plugin from '../main';
 import { Editor, Notice, parseYaml, stringifyYaml } from 'obsidian';
 import { ParsedDocument } from '../types';
+import { moment } from 'obsidian';
 
 export class PropertiesFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -57,6 +58,20 @@ export class PropertiesFeature {
         const trimmedBody = body.replace(/^\n+/, '');
         return `${frontmatterBlock}\n${trimmedBody}`;
     }
+    
+    // ──────────────────────────────────────────────
+    // [dateInsert]
+    //
+	// 오늘 날짜를 ["2026년", "4월", "1일"] 형태로 반환
+	// ──────────────────────────────────────────────
+    private buildTodayBase(): string[] {
+        const m = moment();
+        return [
+            m.format('YYYY년'),
+            m.format('M월'),
+            m.format('D일'),
+        ];
+    }
 
     // ──────────────────────────────────────────────
     // [mergeProperties]
@@ -80,6 +95,11 @@ export class PropertiesFeature {
                     result[key] = yamlValue;
                 }
             }
+        }
+
+        // base가 없을 때만 오늘 날짜 배열 삽입
+        if (result['base'] === undefined) {
+        	result['base'] = this.buildTodayBase();
         }
 
         // 알파벳 순 정렬

@@ -44,9 +44,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     
     // Properties
     userproperties: {
-        "aliases": "[]",
-        "base": "[]",
-        "tags": "[]"
+        "aliases": "[]"
     },
     
     // SaveMD
