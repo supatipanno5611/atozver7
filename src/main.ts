@@ -257,8 +257,8 @@ export default class ATOZVER6Plugin extends Plugin {
         // [MoveCursor]
         this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
         this.addCommand({ id: 'move-cursor-to-start', name: '커서를 문서 처음으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToStart(editor) });
-        this.addCommand({ id: 'go-to-line-start', name: '행 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor), });
-        this.addCommand({ id: 'go-to-line-end', name: '행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor), });
+        this.addCommand({ id: 'go-to-line-start', name: '커서를 행 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor), });
+        this.addCommand({ id: 'go-to-line-end', name: '커서를 행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor), });
 
         // [Ordinary]
         this.addCommand({ id: 'open-ordinary-file', name: '일상노트 열기', callback: () => this.ordinary.openFileOrdinary() });
@@ -290,7 +290,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => this.work.openWorkFile() });
         this.addCommand({ id: 'toggle-later-file-sidebar', name: '백업 문서 사이드바 토글', callback: () => this.work.toggleLaterFileInRightSidebar() });
         this.addCommand({ id: 'close-all-tabs', name: '모든 탭 닫기', callback: () => this.work.cleanupTabs() });
-        this.addCommand({ id: 'backup-and-clear-work', name: 'workmd 정리', callback: async () => {
+        this.addCommand({ id: 'backup-and-clear-work', name: '작업 문서 정리', icon: 'lucide-brush-cleaning' callback: async () => {
             const result = await this.work.readWorkContent();
             if (!result) return;
             if (result.content.trim()) {
