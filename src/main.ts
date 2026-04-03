@@ -110,14 +110,6 @@ export default class ATOZVER6Plugin extends Plugin {
                 return;
             }
 
-            // work.md 백업 및 초기화
-            const result = await this.work.readWorkContent();
-            if (!result) return;
-            if (result.content.trim()) {
-                const success = await this.work.backupAndClear(result.file, result.content);
-                if (!success) return;
-            }
-
             // work 탭 수집 → 중복 제거 후 하나만 활성화
             const workPath = this.settings.workFilePath;
             const workLeaves: WorkspaceLeaf[] = [];
@@ -210,15 +202,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addRibbonIcon('lucide-trash', '휴지통 문서 사이드바 토글', () => this.trash.toggleTrashFileInRightSidebar());
 
         // [Work]
-        this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', async () => {
-            const result = await this.work.readWorkContent();
-            if (!result) return;
-            if (result.content.trim()) {
-                const success = await this.work.backupAndClear(result.file, result.content);
-                if (!success) return;
-            }
-            await this.work.openWorkFile();
-        });
+        this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => this.work.openWorkFile());
         this.addRibbonIcon('lucide-file-pen-line', '백업 문서 사이드바 토글', () => this.work.toggleLaterFileInRightSidebar());
     }
 
@@ -303,17 +287,16 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'toggle-trash-file-sidebar', name: '휴지통 문서 사이드바 토글', callback: () => this.trash.toggleTrashFileInRightSidebar() });
 
         // [Work]
-        this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: async () => {
+        this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => this.work.openWorkFile() });
+        this.addCommand({ id: 'toggle-later-file-sidebar', name: '백업 문서 사이드바 토글', callback: () => this.work.toggleLaterFileInRightSidebar() });
+        this.addCommand({ id: 'close-all-tabs', name: '모든 탭 닫기', callback: () => this.work.cleanupTabs() });
+        this.addCommand({ id: 'backup-and-clear-work', name: 'workmd 정리', callback: async () => {
             const result = await this.work.readWorkContent();
             if (!result) return;
             if (result.content.trim()) {
-                const success = await this.work.backupAndClear(result.file, result.content);
-                if (!success) return;
+                await this.work.backupAndClear(result.file, result.content);
             }
-            await this.work.openWorkFile();
         }});
-        this.addCommand({ id: 'toggle-later-file-sidebar', name: '백업 문서 사이드바 토글', callback: () => this.work.toggleLaterFileInRightSidebar() });
-        this.addCommand({ id: 'close-all-tabs', name: '모든 탭 닫기', callback: () => this.work.cleanupTabs() });
     }
 
     registerEvents() {

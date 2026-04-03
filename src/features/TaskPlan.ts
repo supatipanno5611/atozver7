@@ -17,7 +17,15 @@ export class TaskPlanFeature {
             .getLeavesOfType('markdown')
             .find(l => (l.view as MarkdownView).file?.path === path);
 
-        const leaf = existingLeaf ?? this.plugin.app.workspace.getLeaf(false);
+        // 이미 열린 탭이 있으면 포커스만 이동하고 종료
+        if (existingLeaf) {
+        	this.plugin.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
+            (existingLeaf.view as MarkdownView).editor.focus();
+            return;
+        }
+
+        // 열린 탭이 없으면 현재 탭에서 열기
+        const leaf = this.plugin.app.workspace.getLeaf(false);
         await leaf.openFile(file, { active: true });
 
         const view = leaf.view;
