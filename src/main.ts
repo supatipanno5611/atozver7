@@ -257,6 +257,8 @@ export default class ATOZVER6Plugin extends Plugin {
         // [MoveCursor]
         this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
         this.addCommand({ id: 'move-cursor-to-start', name: '커서를 문서 처음으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToStart(editor) });
+        this.addCommand({ id: 'go-to-line-start', name: '행 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor), });
+        this.addCommand({ id: 'go-to-line-end', name: '행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor), });
 
         // [Ordinary]
         this.addCommand({ id: 'open-ordinary-file', name: '일상노트 열기', callback: () => this.ordinary.openFileOrdinary() });
@@ -270,9 +272,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'unset-auto-save-target', name: '현재 문서를 n타마다 자동 세이브 대상에서 해제', callback: () => this.saveMD.handleUnsetAutoSaveTarget() });
 
         // [Selection]
-        this.addCommand({ id: 'expand-selection-left', name: '선택 범위 왼쪽으로 한 칸 늘리기', icon: "lucide-chevron-left", hotkeys: [{ modifiers: ["Mod"], key: "ArrowLeft"}], editorCallback: (editor: Editor) => this.selection.expandLeft(editor) });
         this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: "lucide-chevrons-left", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowLeft"}], editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
-        this.addCommand({ id: 'expand-selection-right', name: '선택 범위 오른쪽으로 한 칸 늘리기', icon: "lucide-chevron-right", hotkeys: [{ modifiers: ["Mod"], key: "ArrowRight"}], editorCallback: (editor: Editor) => this.selection.expandRight(editor) });
         this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: "lucide-chevrons-right", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowRight"}], editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
 
         // [Snippets]

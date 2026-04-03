@@ -18,4 +18,14 @@ export class MoveCursorFeature {
         editor.setCursor(pos);
         editor.scrollIntoView({ from: pos, to: pos }, true);
     }
+
+    goToLineStart(editor: Editor) {
+    		const cursor = editor.getCursor();
+    		editor.setCursor({ line: cursor.line, ch: 0 });
+  	}
+
+  	goToLineEnd(editor: Editor) {
+  			const cursor = editor.getCursor();
+  			editor.setCursor({ line: cursor.line, ch: editor.getLine(cursor.line).length });
+  	}
 }
