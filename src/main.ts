@@ -94,44 +94,6 @@ export default class ATOZVER6Plugin extends Plugin {
             if (Platform.isMobileApp && window.screen.width >= 800) {
                     document.body.classList.add('mobile-toolbar-off');
             }
-
-            // Work Plugin
-            const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-            const activePath = activeView?.file?.path;
-
-            // task 파일이 열려 있으면 초기화 로직 건너뛰기
-            if (activePath === this.settings.taskFilePath) {
-                return;
-            }
-
-            // ordinary 파일이 열려 있으면 날짜 헤더 + 스크롤만 처리
-            if (activePath === this.settings.ordinaryFilePath) {
-                await this.ordinary.openFileOrdinary();
-                return;
-            }
-
-            // work 탭 수집 → 중복 제거 후 하나만 활성화
-            const workPath = this.settings.workFilePath;
-            const workLeaves: WorkspaceLeaf[] = [];
-            this.app.workspace.iterateRootLeaves((leaf) => {
-                if (leaf.view instanceof MarkdownView &&
-                    leaf.view.file?.path === workPath) {
-                    workLeaves.push(leaf);
-                }
-            });
-
-            // 첫 번째만 남기고 나머지 닫기
-            const firstLeaf = workLeaves[0];
-            for (const leaf of workLeaves.slice(1)) {
-                leaf.detach();
-            }
-
-            if (firstLeaf) {
-                this.app.workspace.setActiveLeaf(firstLeaf, { focus: true });
-                (firstLeaf.view as MarkdownView).editor.focus();
-            } else {
-                await this.work.openWorkFile();
-            }
         });
     }
 
