@@ -171,7 +171,7 @@ export class BaseInputModal extends SuggestModal<string> {
         super(app);
         this.editor = editor;
         this.candidates = candidates;
-        this.setPlaceholder('base에 추가할 항목을 입력하세요. Escape로 종료.');
+        this.setPlaceholder('base에 추가할 항목을 입력하세요.');
     }
 
     getSuggestions(query: string): string[] {
@@ -183,12 +183,15 @@ export class BaseInputModal extends SuggestModal<string> {
             c.toLowerCase().includes(trimmed.toLowerCase())
         );
 
+        // 완료 항목 맨 위 고정
+        const suggestions: string[] = ['✓ 완료'];
+
         // 새 항목 추가 옵션: 입력값이 있고 후보에 없을 때 상단에 노출
         if (trimmed && !this.candidates.includes(trimmed)) {
-            return [`${NEW_ITEM_PREFIX}${trimmed}' 추가`, ...filtered];
+            suggestions.push(`${NEW_ITEM_PREFIX}${trimmed}' 추가`);
         }
 
-        return filtered;
+        return [...suggestions, ...filtered];
     }
 
     renderSuggestion(value: string, el: HTMLElement) {
@@ -196,6 +199,9 @@ export class BaseInputModal extends SuggestModal<string> {
     }
 
     onChooseSuggestion(value: string) {
+    	// 완료 선택 시 플래그 false 유지 → onClose에서 재오픈 안 함
+    	if (value === '✓ 완료') return;
+    	
         // "+" 항목이면 실제 값 추출
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
         const item = isNew
@@ -204,10 +210,7 @@ export class BaseInputModal extends SuggestModal<string> {
 
         this.addToBase(item);
 
-        // 모달을 닫지 않고 재오픈하여 반복 입력 지원
-        setTimeout(() => {
-            new BaseInputModal(this.app, this.editor, this.candidates).open();
-        }, 0);
+        new BaseInputModal(this.app, this.editor, this.candidates).open();
     }
 
     // editor에서 현재 base 배열을 읽어 항목 추가 후 다시 씀

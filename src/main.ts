@@ -145,13 +145,20 @@ export default class ATOZVER6Plugin extends Plugin {
 
     // --- base 캐시 수집 메서드 ---
     collectBaseCandidates(): string[] {
+    	const URL_PATTERN = /^https?:\/\//i;
+    	const INTERNAL_LINK_PATTERN = /^\[\[.*\]\]$/;
         const candidates = new Set<string>();
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
             const base = cache?.frontmatter?.['base'];
             if (Array.isArray(base)) {
                 for (const v of base) {
-                    if (typeof v === 'string' && !DATE_PATTERN.test(v)) {
+                    if (
+                    	typeof v === 'string' &&
+                    	!DATE_PATTERN.test(v) &&
+                    	!URL_PATTERN.test(v) &&
+                    	!INTERNAL_LINK_PATTERN.test(v)
+                    ) {
                         candidates.add(v);
                     }
                 }
