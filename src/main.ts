@@ -104,6 +104,17 @@ export default class ATOZVER6Plugin extends Plugin {
             if (Platform.isMobileApp && window.screen.width < 800) {
                 document.body.classList.add('notice-bottom');
             }
+
+            // [Ordinary] 시작 시 ordinary 탭이 열려 있으면 닫기
+            const ordinaryPath = this.settings.ordinaryFilePath;
+            const ordinaryLeaves: WorkspaceLeaf[] = [];
+            this.app.workspace.iterateRootLeaves((leaf) => {
+                if (leaf.view instanceof MarkdownView &&
+                    leaf.view.file?.path === ordinaryPath) {
+                    ordinaryLeaves.push(leaf);
+                }
+            });
+            ordinaryLeaves.forEach(leaf => leaf.detach());
         });
     }
 
