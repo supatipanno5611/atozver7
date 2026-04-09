@@ -176,6 +176,7 @@ export class BaseInputModal extends SuggestModal<string> {
 
     getSuggestions(query: string): string[] {
         const trimmed = query.trim();
+        const currentBase = this.getCurrentBase();
 
         // 후보 필터링: 날짜 형식 제외, 퍼지 검색
         const filtered = this.candidates.filter(c =>
@@ -191,7 +192,10 @@ export class BaseInputModal extends SuggestModal<string> {
             suggestions.push(`${NEW_ITEM_PREFIX}${trimmed}' 추가`);
         }
 
-        return [...suggestions, ...filtered];
+        // 이미 있는 항목은 [done] 표시 추가
+        return [...suggestions, ...filtered.map(c =>
+            currentBase.includes(c) ? `[done] ${c}` : c
+        )];
     }
 
     renderSuggestion(value: string, el: HTMLElement) {
@@ -204,13 +208,28 @@ export class BaseInputModal extends SuggestModal<string> {
     	
         // "+" 항목이면 실제 값 추출
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
+        // [done] 접두사 제거
+        const cleaned = value.startsWith('[done] ') ? value.slice(7) : value;
         const item = isNew
-            ? value.slice(NEW_ITEM_PREFIX.length, -4) // "+ '" 와 "' 추가" 제거
-            : value;
+            ? cleaned.slice(NEW_ITEM_PREFIX.length, -4)
+            : cleaned;
 
         this.addToBase(item);
 
         new BaseInputModal(this.app, this.editor, this.candidates).open();
+    }
+
+    // 현재 base 배열을 읽는 헬퍼 함수
+    private getCurrentBase(): string[] {
+        const raw = this.editor.getValue();
+        const match = raw.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+        if (!match) return [];
+        try {
+            const parsed = parseYaml(match[1] ?? '');
+            return (parsed && Array.isArray(parsed['base'])) ? parsed['base'] : [];
+        } catch {
+            return [];
+        }
     }
 
     // editor에서 현재 base 배열을 읽어 항목 추가 후 다시 씀
