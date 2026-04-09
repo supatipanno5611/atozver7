@@ -94,6 +94,10 @@ export default class ATOZVER6Plugin extends Plugin {
             if (Platform.isMobileApp && window.screen.width >= 800) {
                     document.body.classList.add('mobile-toolbar-off');
             }
+            // [Notice] 폰이면 알림창 하단 고정
+            if (Platform.isMobileApp && window.screen.width < 800) {
+                document.body.classList.add('notice-bottom');
+            }
         });
     }
 
@@ -108,6 +112,7 @@ export default class ATOZVER6Plugin extends Plugin {
 
         // 플러그인 비활성화 시 스타일이 남아있지 않도록 클래스 제거
         document.body.classList.remove('mobile-toolbar-off');
+        document.body.classList.remove('notice-bottom');
     }
 
     // 설정 로드/저장
@@ -226,7 +231,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'open-ordinary-file', name: '일상노트 열기', callback: () => this.ordinary.openFileOrdinary() });
 
         // [Properties]
-        this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "help", editorCallback: (editor: Editor) => this.properties.insertProperties(editor) });
+        this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", editorCallback: (editor: Editor) => this.properties.insertProperties(editor) });
 
         // [SaveMD]
         this.addCommand({ id: "create-save-file", name: "현재 문서의 세이브 파일 만들기", checkCallback: (checking: boolean) => this.saveMD.checkCreateSaveFile(checking) });

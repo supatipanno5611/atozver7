@@ -55,3 +55,17 @@ body.mobile-toolbar-off .mobile-toolbar,
 body.mobile-toolbar-off .mobile-toolbar-container {
     display: none !important;
 }
+
+/* notice position (phone only) */
+/* 알림창 위치를 우측 하단으로 이동 */
+body.notice-bottom .notice-container {
+    top: auto !important;
+    bottom: 25px !important;
+    display: flex;
+    flex-direction: column-reverse;  /* 최신 알림이 가장 아래에 쌓이도록 설정 */
+}
+/* 개별 알림창 간격 조정 */
+body.notice-bottom .notice {
+    margin-top: 10px;
+    margin-bottom: 0px;
+}
