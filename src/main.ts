@@ -21,6 +21,7 @@ import { TrashFeature } from './features/Trash';
 import { WorkFeature } from './features/Work';
 import { TaskPlanFeature } from './features/TaskPlan';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
+import { DATE_PATTERN } from './features/Properties';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -42,6 +43,7 @@ export default class ATOZVER6Plugin extends Plugin {
     work: WorkFeature;
     taskPlan: TaskPlanFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
+    baseCandidates: string[] = [];
 
     // Snippets/Symbols debounced save timer
     private saveTimer: number | null = null;
@@ -90,6 +92,10 @@ export default class ATOZVER6Plugin extends Plugin {
          * 각 단계를 명시적으로 순서대로 await 처리합니다.
          */
         this.app.workspace.onLayoutReady(async () => {
+
+        	// [Properties] vault 전체 base 값 수집
+        	this.baseCandidates = this.collectBaseCandidates();
+        	
             // [MobileToolbar] 태블릿이면 툴바 숨기기
             if (Platform.isMobileApp && window.screen.width >= 800) {
                     document.body.classList.add('mobile-toolbar-off');
@@ -136,6 +142,23 @@ export default class ATOZVER6Plugin extends Plugin {
     // =========================================================================
     // 1. Register Methods
     // =========================================================================
+
+    // --- base 캐시 수집 메서드 ---
+    collectBaseCandidates(): string[] {
+        const candidates = new Set<string>();
+        for (const file of this.app.vault.getMarkdownFiles()) {
+            const cache = this.app.metadataCache.getFileCache(file);
+            const base = cache?.frontmatter?.['base'];
+            if (Array.isArray(base)) {
+                for (const v of base) {
+                    if (typeof v === 'string' && !DATE_PATTERN.test(v)) {
+                        candidates.add(v);
+                    }
+                }
+            }
+        }
+        return [...candidates];
+    }
 
     registerRibbonIcon() {
     	// [CertainMd]
