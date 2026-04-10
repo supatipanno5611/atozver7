@@ -103,6 +103,30 @@ export class PropertiesFeature {
         	result['base'] = this.buildTodayBase();
         }
 
+        // base 배열 정렬
+        if (Array.isArray(result['base'])) {
+            const base: string[] = result['base'].filter((v: unknown) => typeof v === 'string');
+        
+            // 세 그룹으로 분리
+            const dateGroup   = base.filter(v => DATE_PATTERN.test(v));
+            const linkGroup   = base.filter(v => URL_PATTERN.test(v) || INTERNAL_LINK_PATTERN.test(v));
+            const normalGroup = base.filter(v => !DATE_PATTERN.test(v) && !URL_PATTERN.test(v) && !INTERNAL_LINK_PATTERN.test(v));
+        
+            // 날짜 그룹: 년 → 월 → 일 순
+            const dateOrder = (v: string) => {
+                if (/^\d{4}년$/.test(v)) return 0;
+                if (/^\d{1,2}월$/.test(v)) return 1;
+                if (/^\d{1,2}일$/.test(v)) return 2;
+                return 3;
+            };
+        
+            result['base'] = [
+                ...dateGroup.sort((a, b) => dateOrder(a) - dateOrder(b)),
+                ...normalGroup.sort((a, b) => a.localeCompare(b)),
+                ...linkGroup.sort((a, b) => a.localeCompare(b)),
+            ];
+        }
+
         // 알파벳 순 정렬
         return Object.fromEntries(
             Object.entries(result).sort(([a], [b]) => a.localeCompare(b))
