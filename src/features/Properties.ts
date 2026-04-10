@@ -277,9 +277,12 @@ export class BaseInputModal extends SuggestModal<string> {
             ? `${newFrontmatter}\n${trimmedBody}`
             : newFrontmatter;
 
+        // 이벤트 루프가 끝나고 나서 에디터 업데이트
         const cursorBefore = this.editor.getCursor();
-        this.editor.setValue(newContent);
-        this.editor.setCursor(cursorBefore);
+        setTimeout(() => {
+            this.editor.setValue(newContent);
+            this.editor.setCursor(cursorBefore);
+        }, 0);
 
         // 현재 세션 캐시에도 추가
         if (!this.candidates.includes(item)) {
