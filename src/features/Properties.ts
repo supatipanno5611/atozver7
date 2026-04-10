@@ -209,8 +209,14 @@ export class BaseInputModal extends SuggestModal<string> {
     }
 
     onChooseSuggestion(value: string) {
-    	// 완료 선택 시 플래그 false 유지 → onClose에서 재오픈 안 함
-    	if (value === '✓ 완료') return;
+    	// 완료 선택 시 vault modify
+    	if (value === '✓ 완료') {
+   	        const activeFile = this.app.workspace.getActiveFile();
+   	        if (activeFile) {
+   	            this.app.vault.modify(activeFile, this.editor.getValue());
+   	        }
+   	        return;
+   	    }
     	
         // "+" 항목이면 실제 값 추출
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
@@ -277,12 +283,11 @@ export class BaseInputModal extends SuggestModal<string> {
             ? `${newFrontmatter}\n${trimmedBody}`
             : newFrontmatter;
 
-        // 이벤트 루프가 끝나고 나서 에디터 업데이트
-        const cursorBefore = this.editor.getCursor();
-        setTimeout(() => {
-            this.editor.setValue(newContent);
-            this.editor.setCursor(cursorBefore);
-        }, 0);
+        // editor가 아니라 vault에서 직접 수정하는 방식 채택
+        const activeFile = this.app.workspace.getActiveFile();
+        if (activeFile) {
+            this.app.vault.modify(activeFile, newContent);
+        }
 
         // 현재 세션 캐시에도 추가
         if (!this.candidates.includes(item)) {
