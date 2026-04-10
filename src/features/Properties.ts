@@ -205,7 +205,10 @@ export class BaseInputModal extends SuggestModal<string> {
 
     onChooseSuggestion(value: string) {
     	// 완료 선택 시 플래그 false 유지 → onClose에서 재오픈 안 함
-    	if (value === '✓ 완료') return;
+    	if (value === '✓ 완료') {
+    		this.sortAndWrite();
+    		return;
+    	}
     	
         // "+" 항목이면 실제 값 추출
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
@@ -218,6 +221,49 @@ export class BaseInputModal extends SuggestModal<string> {
         this.addToBase(item);
 
         new BaseInputModal(this.app, this.editor, this.candidates).open();
+    }
+
+    // 완료용 메서드 추가
+    private sortAndWrite() {
+        const raw = this.editor.getValue();
+        const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---(?:\n|$)/;
+        const match = raw.match(FRONTMATTER_REGEX);
+        if (!match) return;
+    
+        let frontmatter: Record<string, any>;
+        try {
+            const parsed = parseYaml(match[1] ?? '');
+            frontmatter = (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+                ? parsed as Record<string, any>
+                : {};
+        } catch { return; }
+    
+        const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
+        this.sortBase(base);
+        frontmatter['base'] = base;
+    
+        const newYaml = stringifyYaml(frontmatter).trimEnd();
+        const newFrontmatter = `---\n${newYaml}\n---`;
+        const body = raw.slice(match[0].length);
+        const trimmedBody = body.replace(/^\n+/, '');
+        const newContent = trimmedBody.length > 0
+            ? `${newFrontmatter}\n${trimmedBody}`
+            : newFrontmatter;
+    
+        const cursorBefore = this.editor.getCursor();
+        this.editor.setValue(newContent);
+        this.editor.setCursor(cursorBefore);
+    }
+
+    // 값 정렬용 메서드 추가
+    private sortBase(base: unknown[]): void {
+        base.sort((a, b) => {
+            const aEx = typeof a === 'string' && (URL_PATTERN.test(a) || INTERNAL_LINK_PATTERN.test(a));
+            const bEx = typeof b === 'string' && (URL_PATTERN.test(b) || INTERNAL_LINK_PATTERN.test(b));
+            if (aEx !== bEx) return aEx ? 1 : -1;
+            if (aEx && bEx) return String(a).localeCompare(String(b));
+            return 0;
+        });
     }
 
     // 현재 base 배열을 읽는 헬퍼 함수
@@ -261,17 +307,7 @@ export class BaseInputModal extends SuggestModal<string> {
 
         // 날짜 뒤에 append
         base.push(item);
-
-        const isExcluded = (v: unknown) =>
-            typeof v === 'string' && (URL_PATTERN.test(v) || INTERNAL_LINK_PATTERN.test(v));
-        base.sort((a, b) => {
-            const aEx = isExcluded(a);
-            const bEx = isExcluded(b);
-            if (aEx !== bEx) return aEx ? 1 : -1;
-            if (aEx && bEx) return String(a).localeCompare(String(b));
-            return 0;
-        });
-        
+        this.sortBase(base);        
         frontmatter['base'] = base;
 
         const newYaml = stringifyYaml(frontmatter).trimEnd();
