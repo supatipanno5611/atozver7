@@ -178,25 +178,26 @@ export class BaseInputModal extends SuggestModal<string> {
     getSuggestions(query: string): string[] {
         const trimmed = query.trim();
         const currentBase = this.getCurrentBase();
-
-        // 후보 필터링: 날짜 형식 제외, 퍼지 검색
+    
+        // 후보 필터링: 날짜 형식 제외, 부분 문자열 검색
         const filtered = this.candidates.filter(c =>
             !DATE_PATTERN.test(c) &&
             c.toLowerCase().includes(trimmed.toLowerCase())
         );
-
-        // 완료 항목 맨 위 고정
-        const suggestions: string[] = ['✓ 완료'];
-
-        // 새 항목 추가 옵션: 입력값이 있고 후보에 없을 때 상단에 노출
-        if (trimmed && !this.candidates.includes(trimmed)) {
-            suggestions.push(`${NEW_ITEM_PREFIX}${trimmed}' 추가`);
-        }
-
-        // 이미 있는 항목은 [done] 표시 추가
-        return [...suggestions, ...filtered.map(c =>
-            currentBase.includes(c) ? `[done] ${c}` : c
-        )];
+    
+        // 입력값이 있고 기존 후보에 없을 때만 새 항목 추가 옵션 생성
+        const newItem = (trimmed && !this.candidates.includes(trimmed))
+            ? `${NEW_ITEM_PREFIX}${trimmed}' 추가`
+            : null;
+    
+        return [
+            // 새 항목이 있으면 맨 위에 노출 (없으면 생략)
+            ...(newItem ? [newItem] : []),
+            // 완료 선택지는 새 항목 바로 아래 고정
+            '✓ 완료',
+            // 기존 후보: 이미 base에 있는 항목은 [done] 표시
+            ...filtered.map(c => currentBase.includes(c) ? `[done] ${c}` : c)
+        ];
     }
 
     renderSuggestion(value: string, el: HTMLElement) {
