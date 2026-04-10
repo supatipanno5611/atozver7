@@ -1,8 +1,8 @@
 import type ATOZVER6Plugin from '../main';
-import { App, Editor, Modal, Notice, SuggestModal, parseYaml, stringifyYaml } from 'obsidian';
+import { App, Editor, Notice, SuggestModal, parseYaml, stringifyYaml } from 'obsidian';
 import { ParsedDocument } from '../types';
 import { moment } from 'obsidian';
-import { URL_PATTERN, INTERNAL_LINK_PATTERN } from '../utils';
+import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN, sortBase } from '../utils';
 
 export class PropertiesFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -86,7 +86,7 @@ export class PropertiesFeature {
     // ──────────────────────────────────────────────
     private mergeProperties(frontmatter: Record<string, any>): Record<string, any> {
         const result = { ...frontmatter };
-
+    
         for (const [key, yamlValue] of Object.entries(this.plugin.settings.userproperties)) {
             if (result[key] === undefined) {
                 try {
@@ -97,36 +97,17 @@ export class PropertiesFeature {
                 }
             }
         }
-
+    
         // base가 없을 때만 오늘 날짜 배열 삽입
         if (result['base'] === undefined) {
-        	result['base'] = this.buildTodayBase();
+            result['base'] = this.buildTodayBase();
         }
-
-        // base 배열 정렬
+    
+        // base 배열 정렬: sortBase()가 모든 정렬을 담당
         if (Array.isArray(result['base'])) {
-            const base: string[] = result['base'].filter((v: unknown) => typeof v === 'string');
-        
-            // 세 그룹으로 분리
-            const dateGroup   = base.filter(v => DATE_PATTERN.test(v));
-            const linkGroup   = base.filter(v => URL_PATTERN.test(v) || INTERNAL_LINK_PATTERN.test(v));
-            const normalGroup = base.filter(v => !DATE_PATTERN.test(v) && !URL_PATTERN.test(v) && !INTERNAL_LINK_PATTERN.test(v));
-        
-            // 날짜 그룹: 년 → 월 → 일 순
-            const dateOrder = (v: string) => {
-                if (/^\d{4}년$/.test(v)) return 0;
-                if (/^\d{1,2}월$/.test(v)) return 1;
-                if (/^\d{1,2}일$/.test(v)) return 2;
-                return 3;
-            };
-        
-            result['base'] = [
-                ...dateGroup.sort((a, b) => dateOrder(a) - dateOrder(b)),
-                ...normalGroup.sort((a, b) => a.localeCompare(b)),
-                ...linkGroup.sort((a, b) => a.localeCompare(b)),
-            ];
+            sortBase(result['base']);
         }
-
+    
         // 알파벳 순 정렬
         return Object.fromEntries(
             Object.entries(result).sort(([a], [b]) => a.localeCompare(b))
@@ -185,7 +166,6 @@ export class PropertiesFeature {
 //   - 선택 즉시 editor의 base 배열에 반영 (중복 스킵)
 //   - 모달은 닫히지 않고 반복 입력, Escape로 종료
 // ──────────────────────────────────────────────
-export const DATE_PATTERN = /^\d{4}년$|^\d{1,2}월$|^\d{1,2}일$/;
 const NEW_ITEM_PREFIX = "+ '";
 
 export class BaseInputModal extends SuggestModal<string> {
@@ -230,10 +210,7 @@ export class BaseInputModal extends SuggestModal<string> {
 
     onChooseSuggestion(value: string) {
     	// 완료 선택 시 플래그 false 유지 → onClose에서 재오픈 안 함
-    	if (value === '✓ 완료') {
-    		this.sortAndWrite();
-    		return;
-    	}
+    	if (value === '✓ 완료') return;
     	
         // "+" 항목이면 실제 값 추출
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
@@ -246,49 +223,6 @@ export class BaseInputModal extends SuggestModal<string> {
         this.addToBase(item);
 
         new BaseInputModal(this.app, this.editor, this.candidates).open();
-    }
-
-    // 완료용 메서드 추가
-    private sortAndWrite() {
-        const raw = this.editor.getValue();
-        const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---(?:\n|$)/;
-        const match = raw.match(FRONTMATTER_REGEX);
-        if (!match) return;
-    
-        let frontmatter: Record<string, any>;
-        try {
-            const parsed = parseYaml(match[1] ?? '');
-            frontmatter = (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
-                ? parsed as Record<string, any>
-                : {};
-        } catch { return; }
-    
-        const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-        this.sortBase(base);
-        frontmatter['base'] = base;
-    
-        const newYaml = stringifyYaml(frontmatter).trimEnd();
-        const newFrontmatter = `---\n${newYaml}\n---`;
-        const body = raw.slice(match[0].length);
-        const trimmedBody = body.replace(/^\n+/, '');
-        const newContent = trimmedBody.length > 0
-            ? `${newFrontmatter}\n${trimmedBody}`
-            : newFrontmatter;
-    
-        const cursorBefore = this.editor.getCursor();
-        this.editor.setValue(newContent);
-        this.editor.setCursor(cursorBefore);
-    }
-
-    // 값 정렬용 메서드 추가
-    private sortBase(base: unknown[]): void {
-        base.sort((a, b) => {
-            const aEx = typeof a === 'string' && (URL_PATTERN.test(a) || INTERNAL_LINK_PATTERN.test(a));
-            const bEx = typeof b === 'string' && (URL_PATTERN.test(b) || INTERNAL_LINK_PATTERN.test(b));
-            if (aEx !== bEx) return aEx ? 1 : -1;
-            if (aEx && bEx) return String(a).localeCompare(String(b));
-            return 0;
-        });
     }
 
     // 현재 base 배열을 읽는 헬퍼 함수
@@ -332,7 +266,7 @@ export class BaseInputModal extends SuggestModal<string> {
 
         // 날짜 뒤에 append
         base.push(item);
-        this.sortBase(base);        
+        sortBase(base);        
         frontmatter['base'] = base;
 
         const newYaml = stringifyYaml(frontmatter).trimEnd();

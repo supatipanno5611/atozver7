@@ -21,8 +21,7 @@ import { TrashFeature } from './features/Trash';
 import { WorkFeature } from './features/Work';
 import { TaskPlanFeature } from './features/TaskPlan';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
-import { DATE_PATTERN } from './features/Properties';
-import { URL_PATTERN, INTERNAL_LINK_PATTERN } from './utils';
+import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
