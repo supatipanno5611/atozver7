@@ -22,6 +22,7 @@ import { WorkFeature } from './features/Work';
 import { TaskPlanFeature } from './features/TaskPlan';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { DATE_PATTERN } from './features/Properties';
+import { URL_PATTERN, INTERNAL_LINK_PATTERN } from './utils';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -156,8 +157,6 @@ export default class ATOZVER6Plugin extends Plugin {
 
     // --- base 캐시 수집 메서드 ---
     collectBaseCandidates(): string[] {
-    	const URL_PATTERN = /^https?:\/\//i;
-    	const INTERNAL_LINK_PATTERN = /^\[\[.*\]\]$/;
         const candidates = new Set<string>();
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);

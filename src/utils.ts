@@ -7,3 +7,6 @@ export function buildTriggerRegex(trigger: string): RegExp {
     const first = escaped[0];
     return new RegExp(`${escaped}([^${first}\\s]*)$`);
 }
+
+export const URL_PATTERN = /^https?:\/\//i;
+export const INTERNAL_LINK_PATTERN = /^\[\[.*\]\]$/;

@@ -2,6 +2,7 @@ import type ATOZVER6Plugin from '../main';
 import { App, Editor, Modal, Notice, SuggestModal, parseYaml, stringifyYaml } from 'obsidian';
 import { ParsedDocument } from '../types';
 import { moment } from 'obsidian';
+import { URL_PATTERN, INTERNAL_LINK_PATTERN } from '../utils';
 
 export class PropertiesFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -260,6 +261,17 @@ export class BaseInputModal extends SuggestModal<string> {
 
         // 날짜 뒤에 append
         base.push(item);
+
+        const isExcluded = (v: unknown) =>
+            typeof v === 'string' && (URL_PATTERN.test(v) || INTERNAL_LINK_PATTERN.test(v));
+        base.sort((a, b) => {
+            const aEx = isExcluded(a);
+            const bEx = isExcluded(b);
+            if (aEx !== bEx) return aEx ? 1 : -1;
+            if (aEx && bEx) return String(a).localeCompare(String(b));
+            return 0;
+        });
+        
         frontmatter['base'] = base;
 
         const newYaml = stringifyYaml(frontmatter).trimEnd();
