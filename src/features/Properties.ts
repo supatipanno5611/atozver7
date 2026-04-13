@@ -1,45 +1,10 @@
 import type ATOZVER6Plugin from '../main';
 import { App, Editor, Notice, SuggestModal, parseYaml, stringifyYaml } from 'obsidian';
-import { ParsedDocument } from '../types';
 import { moment } from 'obsidian';
-import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN, sortBase } from '../utils';
+import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN, sortBase, parseDocument, buildDocument } from '../utils';
 
 export class PropertiesFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
-
-    parseDocument(raw: string): ParsedDocument {
-        const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---(?:\n|$)/;
-        const match = raw.match(FRONTMATTER_REGEX);
-
-        if (!match) {
-            return { frontmatter: {}, body: raw };
-        }
-
-        const yamlString = match[1] ?? '';
-        const afterBlock = raw.slice(match[0].length);
-
-        try {
-            const parsed = parseYaml(yamlString);
-            const frontmatter = (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
-                ? parsed as Record<string, any>
-                : {};
-            return { frontmatter, body: afterBlock };
-        } catch {
-            return { frontmatter: {}, body: raw };
-        }
-    }
-
-    private buildDocument(frontmatter: Record<string, any>, body: string): string {
-        const yamlString = stringifyYaml(frontmatter).trimEnd();
-        const frontmatterBlock = `---\n${yamlString}\n---`;
-
-        if (body.trim().length === 0) {
-            return frontmatterBlock;
-        }
-
-        const trimmedBody = body.replace(/^\n+/, '');
-        return `${frontmatterBlock}\n${trimmedBody}`;
-    }
 
     private buildTodayBase(): string[] {
         const m = moment();
@@ -80,9 +45,9 @@ export class PropertiesFeature {
     insertProperties(editor: Editor): void {
         const raw = editor.getValue();
 
-        const { frontmatter, body } = this.parseDocument(raw);
+        const { frontmatter, body } = parseDocument(raw);
         const merged = this.mergeProperties(frontmatter);
-        const newContent = this.buildDocument(merged, body);
+        const newContent = buildDocument(merged, body);
 
         if (newContent !== raw) {
             const cursorBefore = editor.getCursor();
@@ -136,8 +101,8 @@ export class BaseInputModal extends SuggestModal<string> {
         const done = '✓ 완료';
 
         return filtered.length === 1
-            ? [...(newItem ? [newItem] : []), ...mappedFiltered, done]
-            : [...(newItem ? [newItem] : []), done, ...mappedFiltered];
+        	? [...mappedFiltered, ...(newItem ? [newItem] : []), done]
+        	: [...(newItem ? [newItem] : []), done, ...mappedFiltered];
     }
 
     renderSuggestion(value: string, el: HTMLElement) {
@@ -166,44 +131,13 @@ export class BaseInputModal extends SuggestModal<string> {
     }
 
     private getCurrentBase(): string[] {
-        const raw = this.editor.getValue();
-        const match = raw.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
-        if (!match) return [];
-        try {
-            const parsed = parseYaml(match[1] ?? '');
-            return (parsed && Array.isArray(parsed['base'])) ? parsed['base'] : [];
-        } catch {
-            return [];
-        }
+        const { frontmatter } = parseDocument(this.editor.getValue());
+        return Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
     }
 
-    private parseFrontmatter(raw: string): { match: RegExpMatchArray; frontmatter: Record<string, any> } | null {
-        const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---(?:\n|$)/;
-        const match = raw.match(FRONTMATTER_REGEX);
-        if (!match) return null;
-
-        try {
-            const parsed = parseYaml(match[1] ?? '');
-            const frontmatter = (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
-                ? parsed as Record<string, any>
-                : {};
-            return { match, frontmatter };
-        } catch {
-            return null;
-        }
-    }
-
-    private saveContent(raw: string, match: RegExpMatchArray, frontmatter: Record<string, any>) {
-        const newYaml = stringifyYaml(frontmatter).trimEnd();
-        const newFrontmatter = `---\n${newYaml}\n---`;
-        const body = raw.slice(match[0].length);
-        const trimmedBody = body.replace(/^\n+/, '');
-        const newContent = trimmedBody.length > 0
-            ? `${newFrontmatter}\n${trimmedBody}`
-            : newFrontmatter;
-
+    private saveContent(frontmatter: Record<string, any>, body: string) {
+        const newContent = buildDocument(frontmatter, body);
         this.editor.setValue(newContent);
-
         const activeFile = this.app.workspace.getActiveFile();
         if (activeFile) {
             this.app.vault.modify(activeFile, newContent);
@@ -211,11 +145,7 @@ export class BaseInputModal extends SuggestModal<string> {
     }
 
     private addToBase(item: string) {
-        const raw = this.editor.getValue();
-        const result = this.parseFrontmatter(raw);
-        if (!result) return;
-
-        const { match, frontmatter } = result;
+        const { frontmatter, body } = parseDocument(this.editor.getValue());
         const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
 
         if (base.includes(item)) {
@@ -226,27 +156,19 @@ export class BaseInputModal extends SuggestModal<string> {
         base.push(item);
         sortBase(base);
         frontmatter['base'] = base;
-
-        this.saveContent(raw, match, frontmatter);
+        this.saveContent(frontmatter, body);
 
         if (!this.candidates.includes(item)) {
             this.candidates.push(item);
         }
-
         new Notice(`base에 추가됨: ${item}`);
     }
 
     private removeFromBase(item: string) {
-        const raw = this.editor.getValue();
-        const result = this.parseFrontmatter(raw);
-        if (!result) return;
-
-        const { match, frontmatter } = result;
+        const { frontmatter, body } = parseDocument(this.editor.getValue());
         const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
         frontmatter['base'] = base.filter(v => v !== item);
-
-        this.saveContent(raw, match, frontmatter);
-
+        this.saveContent(frontmatter, body);
         new Notice(`base에서 제거됨: ${item}`);
     }
 }

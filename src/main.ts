@@ -22,6 +22,7 @@ import { WorkFeature } from './features/Work';
 import { TaskPlanFeature } from './features/TaskPlan';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
+import { ViriyaFeature } from './features/ViriyaFeature';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -44,6 +45,7 @@ export default class ATOZVER6Plugin extends Plugin {
     taskPlan: TaskPlanFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
     baseCandidates: string[] = [];
+    viriya: ViriyaFeature;
 
     // Snippets/Symbols debounced save timer
     private saveTimer: number | null = null;
@@ -69,6 +71,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.work = new WorkFeature(this);
         this.taskPlan = new TaskPlanFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
+        this.viriya = new ViriyaFeature(this);
         // --- 설정 탭 등록 ---
         this.addSettingTab(new ATOZSettingTab(this.app, this));
 
@@ -303,6 +306,14 @@ export default class ATOZVER6Plugin extends Plugin {
                 await this.work.backupAndClear(result.file, result.content);
             }
         }});
+
+        // [Viriya]
+        this.addCommand({
+            id: 'add-file-to-viriya',
+            name: '현재 파일을 viriya에 추가',
+            icon: 'lucide-file-up',
+            callback: () => this.viriya.addActiveFileToViriya()
+        });
     }
 
     registerEvents() {

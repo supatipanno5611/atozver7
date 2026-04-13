@@ -1,3 +1,40 @@
+import { parseYaml, stringifyYaml } from 'obsidian';
+import { ParsedDocument } from './types';
+
+export function parseDocument(raw: string): ParsedDocument {
+    const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---(?:\n|$)/;
+    const match = raw.match(FRONTMATTER_REGEX);
+
+    if (!match) {
+        return { frontmatter: {}, body: raw };
+    }
+
+    const yamlString = match[1] ?? '';
+    const afterBlock = raw.slice(match[0].length);
+
+    try {
+        const parsed = parseYaml(yamlString);
+        const frontmatter = (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+            ? parsed as Record<string, any>
+            : {};
+        return { frontmatter, body: afterBlock };
+    } catch {
+        return { frontmatter: {}, body: raw };
+    }
+}
+
+export function buildDocument(frontmatter: Record<string, any>, body: string): string {
+    const yamlString = stringifyYaml(frontmatter).trimEnd();
+    const frontmatterBlock = `---\n${yamlString}\n---`;
+
+    if (body.trim().length === 0) {
+        return frontmatterBlock;
+    }
+
+    const trimmedBody = body.replace(/^\n+/, '');
+    return `${frontmatterBlock}\n${trimmedBody}`;
+}
+
 export function escapeRegex(s: string): string {
     return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
