@@ -13,14 +13,19 @@ export class TaskPlanFeature {
             return;
         }
 
-        const existingLeaf = this.plugin.app.workspace
-            .getLeavesOfType('markdown')
-            .find(l => (l.view as MarkdownView).file?.path === path);
+        // iterateRootLeaves로 사이드바 제외
+        let existingLeaf: WorkspaceLeaf | null = null;
+        this.plugin.app.workspace.iterateRootLeaves((leaf) => {
+            if (!existingLeaf && (leaf.view as MarkdownView).file?.path === path) {
+                existingLeaf = leaf;
+            }
+        });
 
         // 이미 열린 탭이 있으면 포커스만 이동하고 종료
         if (existingLeaf) {
-        	this.plugin.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
-            (existingLeaf.view as MarkdownView).editor.focus();
+            this.plugin.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
+            const view = (existingLeaf as WorkspaceLeaf).view;
+            if (view instanceof MarkdownView) view.editor.focus();
             return;
         }
 
@@ -30,18 +35,12 @@ export class TaskPlanFeature {
 
         const view = leaf.view;
         if (view instanceof MarkdownView) {
-            // 에디터 입력창에 포커스를 줍니다 (커서 깜빡임 활성화)
             view.editor.focus();
 
-            // 커서를 문서 맨 마지막 줄의 맨 끝 글자로 이동
-            const lastLineIndex = view.editor.lineCount() - 1; // 개수에서 1을 빼야 마지막 줄 인덱스
-            const lastLineLength = view.editor.getLine(lastLineIndex).length; // 그 줄의 길이만큼 오른쪽으로 이동
-
+            const lastLineIndex = view.editor.lineCount() - 1;
+            const lastLineLength = view.editor.getLine(lastLineIndex).length;
             const cursorPosition = { line: lastLineIndex, ch: lastLineLength };
-
             view.editor.setCursor(cursorPosition);
-
-            // 커서 위치로 화면 스크롤 이동 (문서가 길 경우를 대비)
             view.editor.scrollIntoView({ from: cursorPosition, to: cursorPosition }, true);
         }
     }
@@ -92,7 +91,6 @@ export class TaskPlanFeature {
             if (existingPlanLeaf && existingPlanLeaf !== activeLeaf) {
                 workspace.setActiveLeaf(existingPlanLeaf, { focus: true });
             } else {
-                // Task -> Plan 전환은 '문맥 전환'이므로 Pinned여도 해제하고 엽니다.
                 if (isPinned) activeLeaf.setPinned(false);
                 await this.openFileInLeaf(activeLeaf, planFile);
             }
@@ -102,7 +100,6 @@ export class TaskPlanFeature {
             if (existingTaskLeaf && existingTaskLeaf !== activeLeaf) {
                 workspace.setActiveLeaf(existingTaskLeaf, { focus: true });
             } else {
-                // Plan -> Task 전환은 '문맥 전환'이므로 Pinned여도 해제하고 엽니다.
                 if (isPinned) activeLeaf.setPinned(false);
                 await this.openFileInLeaf(activeLeaf, taskFile);
             }
@@ -113,14 +110,10 @@ export class TaskPlanFeature {
                 workspace.setActiveLeaf(existingTaskLeaf, { focus: true });
             } else if (existingPlanLeaf) {
                 workspace.setActiveLeaf(existingPlanLeaf, { focus: true });
-            }
-            else {
-                // ★ 수정된 부분 ★
+            } else {
                 if (isPinned) {
-                    // 고정된 '기타 파일'은 보호해야 합니다. 고정을 풀지 않고 '새 탭'을 엽니다.
                     await this.openFileInNewTab(taskFile);
                 } else {
-                    // 고정되지 않았다면 현재 탭을 교체합니다.
                     await this.openFileInLeaf(activeLeaf, taskFile);
                 }
             }
@@ -144,7 +137,6 @@ export class TaskPlanFeature {
     private ensureFocus(leaf: WorkspaceLeaf) {
         const view = leaf.view;
         if (view instanceof MarkdownView) {
-            // 커서 위치를 건드리지 않고 입력 활성화만 수행
             view.editor.focus();
         }
     }
@@ -233,11 +225,11 @@ export class TaskPlanFeature {
     ) {
         if (route.isFromTask) {
             await this.moveToplan(
-                editor, targetFile, route.targetPath, contentToMove, startLine, endLine
+                editor, targetFile, contentToMove, startLine, endLine
             );
         } else {
             await this.prependToTopOfFile(targetFile, contentToMove);
-            this.finalizeMove(editor, startLine, endLine, route.targetPath);
+            this.finalizeMove(editor, startLine, endLine);
         }
     }
 
@@ -245,7 +237,6 @@ export class TaskPlanFeature {
     private async moveToplan(
         editor: Editor,
         targetFile: TFile,
-        targetPath: string,
         contentToMove: string,
         startLine: number,
         endLine: number
@@ -255,7 +246,7 @@ export class TaskPlanFeature {
 
         if (sections.length === 0) {
             await this.appendToEndOfFile(targetFile, contentToMove);
-            this.finalizeMove(editor, startLine, endLine, targetPath);
+            this.finalizeMove(editor, startLine, endLine);
             return;
         }
 
@@ -264,7 +255,7 @@ export class TaskPlanFeature {
             sections,
             async (selectedSection) => {
                 await this.insertAfterSection(targetFile, selectedSection, contentToMove);
-                this.finalizeMove(editor, startLine, endLine, targetPath);
+                this.finalizeMove(editor, startLine, endLine);
             }
         ).open();
     }
@@ -280,7 +271,6 @@ export class TaskPlanFeature {
                 return lines.join('\n');
             }
 
-            // 섹션 범위(sectionIdx+1 ~ 다음 헤더 직전)에서 마지막 비어있지 않은 줄 탐색
             const nextSectionIdx = lines.findIndex(
                 (l, i) => i > sectionIdx && l.startsWith('#')
             );
@@ -314,14 +304,11 @@ export class TaskPlanFeature {
     private finalizeMove(
         editor: Editor,
         startLine: number,
-        endLine: number,
-        targetPath: string
+        endLine: number
     ) {
-        // 삭제 범위 계산
         const from: EditorPosition = { line: startLine, ch: 0 };
         const to: EditorPosition = { line: endLine + 1, ch: 0 };
 
-        // 마지막 줄 포함 시 예외 처리
         if (endLine === editor.lineCount() - 1) {
             if (startLine > 0) {
                 from.line = startLine - 1;
@@ -335,9 +322,6 @@ export class TaskPlanFeature {
         }
 
         editor.replaceRange('', from, to);
-
-        // 이동 후 대상 파일 열고 포커스
-        this.openTaskPlanFile(targetPath);
     }
 }
 

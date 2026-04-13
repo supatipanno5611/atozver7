@@ -193,15 +193,15 @@ export class BaseInputModal extends SuggestModal<string> {
         const newItem = (trimmed && !this.candidates.includes(trimmed))
             ? `${NEW_ITEM_PREFIX}${trimmed}' 추가`
             : null;
-    
-        return [
-            // 새 항목이 있으면 맨 위에 노출 (없으면 생략)
-            ...(newItem ? [newItem] : []),
-            // 완료 선택지는 새 항목 바로 아래 고정
-            '✓ 완료',
-            // 기존 후보: 이미 base에 있는 항목은 [done] 표시
-            ...filtered.map(c => currentBase.includes(c) ? `[done] ${c}` : c)
-        ];
+
+        const mappedFiltered = filtered.map(c =>
+            currentBase.includes(c) ? `[done] ${c}` : c
+        );
+        const done = '✓ 완료';
+        
+        return filtered.length === 1
+            ? [...(newItem ? [newItem] : []), ...mappedFiltered, done]
+            : [...(newItem ? [newItem] : []), done, ...mappedFiltered];
     }
 
     renderSuggestion(value: string, el: HTMLElement) {
