@@ -25,6 +25,8 @@ import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
 import { ViriyaFeature } from './features/ViriyaFeature';
 import { TitleSuggestions } from './features/Title';
 import { NewNoteFeature } from './features/NewNote';
+import { SwitcherFeature } from './features/Switcher';
+import { MobileFeature } from './features/Mobile';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -48,7 +50,8 @@ export default class ATOZVER6Plugin extends Plugin {
     cutCreateNewMd: CutCreateNewMdFeature;
     viriya: ViriyaFeature;
     newNote: NewNoteFeature;
-
+    switcher: SwitcherFeature;
+    mobile: MobileFeature;
     
     baseCandidates: string[] = [];
     titleCandidates: Map<string, string> = new Map();
@@ -79,6 +82,8 @@ export default class ATOZVER6Plugin extends Plugin {
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.viriya = new ViriyaFeature(this);
         this.newNote = new NewNoteFeature(this);
+        this.switcher = new SwitcherFeature(this);
+        this.mobile = new MobileFeature(this);
         // --- 설정 탭 등록 ---
         this.addSettingTab(new ATOZSettingTab(this.app, this));
 
@@ -107,15 +112,12 @@ export default class ATOZVER6Plugin extends Plugin {
         	// [Properties] vault 전체 base, title  값 수집
         	this.baseCandidates = this.collectBaseCandidates();
         	this.titleCandidates = this.collectTitleCandidates();
-        	
-            // [MobileToolbar] 태블릿이면 툴바 숨기기
-            if (Platform.isMobileApp && window.screen.width >= 800) {
-                    document.body.classList.add('mobile-toolbar-off');
-            }
-            // [Notice] 폰이면 알림창 하단 고정
-            if (Platform.isMobileApp && window.screen.width < 800) {
-                document.body.classList.add('notice-bottom');
-            }
+
+        	// [Mobile] add mobile override
+        	this.mobile.install({
+        	    onTitleSwitcher: () => this.switcher.openTitleSwitcher(),
+        	    onNewNote: () => this.newNote.open(),
+        	});
 
             // [Ordinary] 시작 시 ordinary 탭이 열려 있으면 닫기
             const ordinaryPath = this.settings.ordinaryFilePath;
@@ -140,8 +142,7 @@ export default class ATOZVER6Plugin extends Plugin {
         }
 
         // 플러그인 비활성화 시 스타일이 남아있지 않도록 클래스 제거
-        document.body.classList.remove('mobile-toolbar-off');
-        document.body.classList.remove('notice-bottom');
+        this.mobile.uninstall();
     }
 
     // 설정 로드/저장
@@ -333,6 +334,14 @@ export default class ATOZVER6Plugin extends Plugin {
         // [Snippets]
         this.addCommand({ id: 'add-to-snippets', name: '조각글 추가', icon: 'lucide-clipboard-plus', editorCallback: (editor: Editor) => { this.snippets.addSnippet(editor.getSelection()); } });
         this.addCommand({ id: 'remove-from-snippets', name: '조각글 제거', icon: 'lucide-clipboard-minus', editorCallback: (editor: Editor) => { this.snippets.removeSnippet(editor.getSelection()); } });
+
+        // [Switcher]
+        this.addCommand({
+            id: 'open-title-switcher',
+            name: '빠른 탐색기 열기',
+            hotkeys: [{ modifiers: ["Mod"], key: "O" }],
+            callback: () => this.switcher.openTitleSwitcher()
+        });
 
         // [TaskPlan]
         this.addCommand({ id: 'smart-toggle-task-plan', name: '할 일 계획 스마트 토글', callback: () => this.taskPlan.openTaskPlanSmart() });

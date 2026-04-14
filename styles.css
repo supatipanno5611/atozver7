@@ -69,3 +69,8 @@ body.notice-bottom .notice {
     margin-top: 10px;
     margin-bottom: 0px;
 }
+
+/* empty tab — 기본 버튼 숨기기 */
+.empty-state-action-list .empty-state-action:not(.title-switcher-empty-tab-action):not(.atoz-new-note-empty-tab-action) {
+    display: none;
+}
