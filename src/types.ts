@@ -1,6 +1,7 @@
 export interface ATOZSettings {
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
+    sets: Record<string, number>;
     ordinaryFilePath: string;
     userproperties: Record<string, string>;
     saveMdMaxRepeat: number;
@@ -38,6 +39,9 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
 
     // Cursor Center
     isCursorCenterEnabled: false,
+
+    // New Note
+    sets: {},
     
     // Ordinary
     ordinaryFilePath: 'ordinary.md',

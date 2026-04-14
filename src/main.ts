@@ -24,6 +24,7 @@ import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
 import { ViriyaFeature } from './features/ViriyaFeature';
 import { TitleSuggestions } from './features/Title';
+import { NewNoteFeature } from './features/NewNote';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -46,6 +47,7 @@ export default class ATOZVER6Plugin extends Plugin {
     taskPlan: TaskPlanFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
     viriya: ViriyaFeature;
+    newNote: NewNoteFeature;
 
     
     baseCandidates: string[] = [];
@@ -76,6 +78,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.taskPlan = new TaskPlanFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.viriya = new ViriyaFeature(this);
+        this.newNote = new NewNoteFeature(this);
         // --- 설정 탭 등록 ---
         this.addSettingTab(new ATOZSettingTab(this.app, this));
 
@@ -287,6 +290,21 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'move-cursor-to-start', name: '커서를 문서 처음으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToStart(editor) });
         this.addCommand({ id: 'go-to-line-start', name: '커서를 행 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor), });
         this.addCommand({ id: 'go-to-line-end', name: '커서를 행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor), });
+
+        // [NewNote]
+        this.addCommand({
+            id: 'new-note',
+            name: '새 노트 생성',
+            icon: 'lucide-file-plus',
+            callback: () => this.newNote.open()
+        });
+
+        this.addCommand({
+            id: 'sync-sets',
+            name: 'set 목록 동기화',
+            icon: 'lucide-refresh-cw',
+            callback: () => this.newNote.syncSets()
+        });
 
         // [Ordinary]
         this.addCommand({ id: 'open-ordinary-file', name: '일상노트 열기', callback: () => this.ordinary.openFileOrdinary() });
