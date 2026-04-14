@@ -1,5 +1,5 @@
 import type ATOZVER6Plugin from '../main';
-import { App, Notice, SuggestModal, parseYaml } from 'obsidian';
+import { App, Notice, SuggestModal, parseYaml, TFile } from 'obsidian';
 import { moment } from 'obsidian';
 import { DATE_PATTERN, sortBase } from '../utils';
 
@@ -16,36 +16,73 @@ export class PropertiesFeature {
     }
 
     async lintProperties(): Promise<void> {
-        const activeFile = this.plugin.app.workspace.getActiveFile();
-        if (!activeFile) return;
-
         const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base']);
-        const toReview: string[] = [];
-
-        await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-            for (const [key, value] of Object.entries(frontmatter)) {
-                if (allowed.has(key)) continue;
-
-                const isEmpty =
-                    value === null ||
-                    value === undefined ||
-                    value === '' ||
-                    (Array.isArray(value) && value.length === 0);
-
-                if (isEmpty) {
-                    delete frontmatter[key];
-                } else {
-                    toReview.push(key);
+        const requiredKeys = Object.keys(this.plugin.settings.userproperties);
+        const files = this.plugin.app.vault.getMarkdownFiles();
+    
+        let cleanedCount = 0;
+        let reviewCount = 0;
+        const missingKeyFiles: string[] = [];
+    
+        for (const file of files) {
+            if (file.path === 'log.md') continue;
+    
+            const toReview: string[] = [];
+    
+            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                for (const [key, value] of Object.entries(frontmatter)) {
+                    if (allowed.has(key)) continue;
+    
+                    const isEmpty =
+                        value === null ||
+                        value === undefined ||
+                        value === '' ||
+                        (Array.isArray(value) && value.length === 0);
+    
+                    if (isEmpty) {
+                        delete frontmatter[key];
+                        cleanedCount++;
+                    } else {
+                        toReview.push(key);
+                    }
                 }
+    
+                for (const key of requiredKeys) {
+                    if (frontmatter[key] === undefined) {
+                        missingKeyFiles.push(file.path);
+                        return;
+                    }
+                }
+            });
+    
+            if (toReview.length > 0) {
+                const leaf = this.plugin.app.workspace.getLeaf('tab');
+                await leaf.openFile(file);
+                reviewCount++;
             }
-        });
-
-        if (toReview.length > 0) {
-            const leaf = this.plugin.app.workspace.getLeaf('tab');
-            await leaf.openFile(activeFile);
-            new Notice(`확인 필요한 속성: ${toReview.join(', ')}`);
+        }
+    
+        if (missingKeyFiles.length > 0) {
+            const logContent = missingKeyFiles
+                .map((path, i) => {
+                    const name = path.replace(/\.md$/, '');
+                    return `${i + 1}. [[${name}]]`;
+                })
+                .join('\n');
+    
+            const { vault } = this.plugin.app;
+            const existing = vault.getAbstractFileByPath('log.md');
+            if (existing instanceof TFile) {
+                await vault.modify(existing, logContent);
+            } else {
+                await vault.create('log.md', logContent);
+            }
+        }
+    
+        if (cleanedCount === 0 && reviewCount === 0 && missingKeyFiles.length === 0) {
+            new Notice('정리할 속성이 없습니다.');
         } else {
-            new Notice('속성 정리 완료.');
+            new Notice(`${cleanedCount}개 속성 정리, ${reviewCount}개 파일 확인 필요, ${missingKeyFiles.length}개 파일 누락 속성 기록.`);
         }
     }
 
