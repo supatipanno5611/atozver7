@@ -312,6 +312,14 @@ export default class ATOZVER6Plugin extends Plugin {
         // [Properties]
         this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", callback: () => this.properties.insertProperties() });
         this.addCommand({ id: "lint-properties", name: "속성 정리", icon: "lucide-list-x", callback: () => this.properties.lintProperties() });
+        this.addCommand({
+            id: 'refresh-base-candidates',
+            name: 'base 후보 캐시 재수집',
+            callback: () => {
+                this.baseCandidates = this.collectBaseCandidates();
+                new Notice('base 후보를 재수집했습니다.');
+            }
+        });
 
         // [SaveMD]
         this.addCommand({ id: "create-save-file", name: "현재 문서의 세이브 파일 만들기", checkCallback: (checking: boolean) => this.saveMD.checkCreateSaveFile(checking) });
