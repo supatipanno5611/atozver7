@@ -23,6 +23,7 @@ import { TaskPlanFeature } from './features/TaskPlan';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
 import { ViriyaFeature } from './features/ViriyaFeature';
+import { TitleSuggestions } from './features/Title';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -44,8 +45,11 @@ export default class ATOZVER6Plugin extends Plugin {
     work: WorkFeature;
     taskPlan: TaskPlanFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
-    baseCandidates: string[] = [];
     viriya: ViriyaFeature;
+
+    
+    baseCandidates: string[] = [];
+    titleCandidates: Map<string, string> = new Map();
 
     // Snippets/Symbols debounced save timer
     private saveTimer: number | null = null;
@@ -87,6 +91,7 @@ export default class ATOZVER6Plugin extends Plugin {
         // --- Editor Suggesters 등록 ---
         this.registerEditorSuggest(new SnippetsSuggestions(this));
         this.registerEditorSuggest(new SymbolSuggestions(this));
+        this.registerEditorSuggest(new TitleSuggestions(this));
 
         // --- Startup Logic (Work Plugin) ---
         /**
@@ -96,8 +101,9 @@ export default class ATOZVER6Plugin extends Plugin {
          */
         this.app.workspace.onLayoutReady(async () => {
 
-        	// [Properties] vault 전체 base 값 수집
+        	// [Properties] vault 전체 base, title  값 수집
         	this.baseCandidates = this.collectBaseCandidates();
+        	this.titleCandidates = this.collectTitleCandidates();
         	
             // [MobileToolbar] 태블릿이면 툴바 숨기기
             if (Platform.isMobileApp && window.screen.width >= 800) {
@@ -153,10 +159,6 @@ export default class ATOZVER6Plugin extends Plugin {
         }, 300);
     }
 
-    // =========================================================================
-    // 1. Register Methods
-    // =========================================================================
-
     // --- base 캐시 수집 메서드 ---
     collectBaseCandidates(): string[] {
         const candidates = new Set<string>();
@@ -178,6 +180,23 @@ export default class ATOZVER6Plugin extends Plugin {
         }
         return [...candidates];
     }
+
+    // --- title 캐시 수집 메서드 ---
+    collectTitleCandidates(): Map<string, string> {
+        const map = new Map<string, string>();
+        for (const file of this.app.vault.getMarkdownFiles()) {
+            const cache = this.app.metadataCache.getFileCache(file);
+            const title = cache?.frontmatter?.['title'];
+            if (typeof title === 'string' && title.trim()) {
+                map.set(title, file.path);
+            }
+        }
+        return map;
+    }
+
+    // =========================================================================
+    // 1. Register Methods
+    // =========================================================================
 
     registerRibbonIcon() {
     	// [CertainMd]
