@@ -2,7 +2,7 @@ import {
     Plugin, App, Editor, MarkdownView, WorkspaceLeaf, Notice, TFile,
     PluginSettingTab, Setting, Platform
 } from 'obsidian';
-import { ATOZSettings, DEFAULT_SETTINGS } from './types';
+import { ATOZSettings, DEFAULT_SETTINGS, SwitcherItem } from './types';
 import { SelectionFeature } from './features/Selection';
 import { MoveCursorFeature } from './features/MoveCursor';
 import { ExecutesFeature } from './features/Executes';
@@ -55,6 +55,7 @@ export default class ATOZVER6Plugin extends Plugin {
     
     baseCandidates: string[] = [];
     titleCandidates: Map<string, string> = new Map();
+    allFileCandidates: SwitcherItem[] = [];
 
     // Snippets/Symbols debounced save timer
     private saveTimer: number | null = null;
@@ -112,6 +113,7 @@ export default class ATOZVER6Plugin extends Plugin {
         	// [Properties] vault 전체 base, title  값 수집
         	this.baseCandidates = this.collectBaseCandidates();
         	this.titleCandidates = this.collectTitleCandidates();
+        	this.allFileCandidates = this.collectAllFileCandidates();
 
         	// [Mobile] add mobile override
         	this.mobile.install({
@@ -196,6 +198,13 @@ export default class ATOZVER6Plugin extends Plugin {
             }
         }
         return map;
+    }
+
+    // --- attachment ---
+
+    collectAllFileCandidates(): SwitcherItem[] {
+        return this.app.vault.getFiles()
+            .map(f => ({ display: f.name, path: f.path }));
     }
 
     // =========================================================================
@@ -423,6 +432,50 @@ export default class ATOZVER6Plugin extends Plugin {
                         .onClick(async () => { await this.saveMD.createSaveFile(file); });
                     });
                 }
+            })
+        );
+
+        // [Switcher] 캐시 동기화
+        this.registerEvent(
+            this.app.metadataCache.on('changed', (file) => {
+                const newTitle = this.app.metadataCache.getFileCache(file)?.frontmatter?.['title'];
+                for (const [title, path] of this.titleCandidates) {
+                    if (path === file.path) {
+                        if (title === newTitle) return;
+                        this.titleCandidates.delete(title);
+                        break;
+                    }
+                }
+                if (typeof newTitle === 'string' && newTitle.trim()) {
+                    this.titleCandidates.set(newTitle, file.path);
+                }
+            })
+        );
+        this.registerEvent(
+            this.app.vault.on('create', (file) => {
+                if (!(file instanceof TFile)) return;
+                this.allFileCandidates.push({ display: file.name, path: file.path });
+            })
+        );
+        this.registerEvent(
+            this.app.vault.on('delete', (file) => {
+                if (!(file instanceof TFile)) return;
+                this.allFileCandidates = this.allFileCandidates.filter(c => c.path !== file.path);
+                if (file.extension === 'md') {
+                    for (const [title, path] of this.titleCandidates) {
+                        if (path === file.path) {
+                            this.titleCandidates.delete(title);
+                            break;
+                        }
+                    }
+                }
+            })
+        );
+        this.registerEvent(
+            this.app.vault.on('rename', (file, oldPath) => {
+                if (!(file instanceof TFile)) return;
+                this.allFileCandidates = this.allFileCandidates.filter(c => c.path !== oldPath);
+                this.allFileCandidates.push({ display: file.name, path: file.path });
             })
         );
 

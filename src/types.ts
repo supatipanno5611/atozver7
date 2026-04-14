@@ -28,6 +28,7 @@ export interface ATOZSettings {
 
 export interface SnippetsItem { content: string; }
 export interface SymbolItem { id: string; symbol: string; closing?: string; }
+export interface SwitcherItem { display: string; path: string; }
 export interface ParsedDocument {
     frontmatter: Record<string, any>;
     body: string;

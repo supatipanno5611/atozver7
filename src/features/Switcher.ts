@@ -1,23 +1,49 @@
 import type ATOZVER6Plugin from '../main';
-import { App, FuzzySuggestModal, FuzzyMatch } from 'obsidian';
+import { App, SuggestModal } from 'obsidian';
+import { SwitcherItem } from '../types';
 
-class TitleSwitcherModal extends FuzzySuggestModal<{ title: string; path: string }> {
-    private candidates: { title: string; path: string }[];
+const FILE_SEARCH_PREFIXES = ['-', '~', '@'];
 
-    constructor(app: App, titleCandidates: Map<string, string>) {
+class TitleSwitcherModal extends SuggestModal<SwitcherItem> {
+    private plugin: ATOZVER6Plugin;
+
+    constructor(app: App, plugin: ATOZVER6Plugin) {
         super(app);
-        this.candidates = [...titleCandidates.entries()].map(([title, path]) => ({ title, path }));
+        this.plugin = plugin;
+        this.setPlaceholder('title 검색 | - ~ @ 로 시작하면 파일명 검색');
     }
 
-    getItems(): { title: string; path: string }[] {
-        return this.candidates;
+    getSuggestions(query: string): SwitcherItem[] {
+        const isFileMode = FILE_SEARCH_PREFIXES.some(p => query.startsWith(p));
+        const searchText = isFileMode ? query.slice(1).toLowerCase() : query.toLowerCase();
+
+        if (isFileMode) {
+            return this.plugin.allFileCandidates.filter(c =>
+                c.display.toLowerCase().includes(searchText)
+            );
+        }
+
+        const results: SwitcherItem[] = [];
+        for (const [title, path] of this.plugin.titleCandidates) {
+            if (title.toLowerCase().includes(searchText)) {
+                const basename = path.split('/').pop()?.replace(/\.md$/, '') ?? path;
+                results.push({ display: title, path });
+            }
+        }
+        return results;
     }
 
-    getItemText(item: { title: string; path: string }): string {
-        return item.title;
+    renderSuggestion(item: SwitcherItem, el: HTMLElement) {
+        const isFileMode = FILE_SEARCH_PREFIXES.some(p => this.inputEl.value.startsWith(p));
+        if (isFileMode) {
+            el.setText(item.display);
+            return;
+        }
+        const basename = item.path.split('/').pop()?.replace(/\.md$/, '') ?? item.path;
+        el.setText(`${item.display} [${basename}]`);
     }
 
-    onChooseItem(item: { title: string; path: string }): void {
+    onChooseSuggestion(item: SwitcherItem) {
         this.app.workspace.openLinkText(item.path, '');
     }
 }
@@ -26,6 +52,6 @@ export class SwitcherFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
     openTitleSwitcher(): void {
-        new TitleSwitcherModal(this.plugin.app, this.plugin.titleCandidates).open();
+        new TitleSwitcherModal(this.plugin.app, this.plugin).open();
     }
 }

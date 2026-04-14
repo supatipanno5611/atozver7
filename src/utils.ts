@@ -45,6 +45,7 @@ export function buildTriggerRegex(trigger: string): RegExp {
     return new RegExp(`${escaped}([^${first}\\s]*)$`);
 }
 
+export const ATTACHMENT_FOLDER = 'attachment';
 export const URL_PATTERN = /^https?:\/\//i;
 export const INTERNAL_LINK_PATTERN = /^\[\[.*\]\]$/;
 export const DATE_PATTERN = /^\d{4}년$|^\d{1,2}월$|^\d{1,2}일$/;
