@@ -1,5 +1,5 @@
 import type ATOZVER6Plugin from '../main';
-import { Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, prepareFuzzySearch } from 'obsidian';
+import { Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo } from 'obsidian';
 
 export class TitleSuggestions extends EditorSuggest<{ title: string; filePath: string }> {
     private plugin: ATOZVER6Plugin;
@@ -29,13 +29,15 @@ export class TitleSuggestions extends EditorSuggest<{ title: string; filePath: s
             suggestions = [...this.plugin.titleCandidates.entries()]
                 .map(([title, filePath]) => ({ title, filePath }));
         } else {
-            const fuzzy = prepareFuzzySearch(query);
             const results: { title: string; filePath: string; score: number }[] = [];
             for (const [title, filePath] of this.plugin.titleCandidates) {
-                const result = fuzzy(title.toLowerCase());
-                if (result) results.push({ title, filePath, score: result.score });
+                const idx = title.toLowerCase().indexOf(query);
+                if (idx !== -1) results.push({ title, filePath, score: idx });
             }
-            results.sort((a, b) => b.score - a.score);
+            results.sort((a, b) => {
+                if (a.score !== b.score) return a.score - b.score;
+                return a.title.length - b.title.length;
+            });
             suggestions = results.map(r => ({ title: r.title, filePath: r.filePath }));
         }
 
