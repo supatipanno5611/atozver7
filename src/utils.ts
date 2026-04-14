@@ -48,6 +48,7 @@ export function buildTriggerRegex(trigger: string): RegExp {
 export const URL_PATTERN = /^https?:\/\//i;
 export const INTERNAL_LINK_PATTERN = /^\[\[.*\]\]$/;
 export const DATE_PATTERN = /^\d{4}년$|^\d{1,2}월$|^\d{1,2}일$/;
+export const ENGLISH_ONLY_PATTERN = /^[a-zA-Z\s\-]+$/;
 
 export function sortBase(base: unknown[]): void {
     const isKorean = (s: string) => /[가-힣]/.test(s);
