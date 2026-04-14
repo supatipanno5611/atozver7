@@ -23,7 +23,7 @@ export class NewNoteFeature {
 
             const view = leaf.view;
             if (view instanceof MarkdownView) {
-                await this.plugin.properties.insertProperties(view.editor);
+                await this.plugin.properties.insertProperties();
             }
 
             // 생성 완료 후 번호 갱신

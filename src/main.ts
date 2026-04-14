@@ -310,7 +310,8 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'open-ordinary-file', name: '일상노트 열기', callback: () => this.ordinary.openFileOrdinary() });
 
         // [Properties]
-        this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", editorCallback: (editor: Editor) => this.properties.insertProperties(editor) });
+        this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", callback: () => this.properties.insertProperties() });
+        this.addCommand({ id: "lint-properties", name: "속성 정리", icon: "lucide-list-x", callback: () => this.properties.lintProperties() });
 
         // [SaveMD]
         this.addCommand({ id: "create-save-file", name: "현재 문서의 세이브 파일 만들기", checkCallback: (checking: boolean) => this.saveMD.checkCreateSaveFile(checking) });

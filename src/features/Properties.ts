@@ -1,7 +1,7 @@
 import type ATOZVER6Plugin from '../main';
-import { App, Editor, Notice, SuggestModal, parseYaml, stringifyYaml } from 'obsidian';
+import { App, Notice, SuggestModal, parseYaml } from 'obsidian';
 import { moment } from 'obsidian';
-import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN, sortBase, parseDocument, buildDocument } from '../utils';
+import { DATE_PATTERN, sortBase } from '../utils';
 
 export class PropertiesFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -15,76 +15,99 @@ export class PropertiesFeature {
         ];
     }
 
-    private mergeProperties(frontmatter: Record<string, any>): Record<string, any> {
-        const result = { ...frontmatter };
+    async lintProperties(): Promise<void> {
+        const activeFile = this.plugin.app.workspace.getActiveFile();
+        if (!activeFile) return;
 
-        for (const [key, yamlValue] of Object.entries(this.plugin.settings.userproperties)) {
-            if (result[key] === undefined) {
-                try {
-                    result[key] = parseYaml(yamlValue.trim());
-                } catch {
-                    new Notice(`'${key}' 값의 YAML 파싱에 실패했습니다. 문자열로 저장합니다.`);
-                    result[key] = yamlValue;
+        const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base']);
+        const toReview: string[] = [];
+
+        await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+            for (const [key, value] of Object.entries(frontmatter)) {
+                if (allowed.has(key)) continue;
+
+                const isEmpty =
+                    value === null ||
+                    value === undefined ||
+                    value === '' ||
+                    (Array.isArray(value) && value.length === 0);
+
+                if (isEmpty) {
+                    delete frontmatter[key];
+                } else {
+                    toReview.push(key);
                 }
             }
-        }
+        });
 
-        if (result['base'] === undefined) {
-            result['base'] = this.buildTodayBase();
+        if (toReview.length > 0) {
+            const leaf = this.plugin.app.workspace.getLeaf('tab');
+            await leaf.openFile(activeFile);
+            new Notice(`확인 필요한 속성: ${toReview.join(', ')}`);
+        } else {
+            new Notice('속성 정리 완료.');
         }
-
-        if (Array.isArray(result['base'])) {
-            sortBase(result['base']);
-        }
-
-        return Object.fromEntries(
-            Object.entries(result).sort(([a], [b]) => a.localeCompare(b))
-        );
     }
 
-    insertProperties(editor: Editor): void {
-        const raw = editor.getValue();
-
-        const { frontmatter, body } = parseDocument(raw);
-        const merged = this.mergeProperties(frontmatter);
-        const newContent = buildDocument(merged, body);
-
-        if (newContent !== raw) {
-            const cursorBefore = editor.getCursor();
-            const oldHadFrontmatter = /^---\n/.test(raw);
-
-            editor.setValue(newContent);
-
-            if (!oldHadFrontmatter) {
-                const insertedLineCount = newContent.split('\n').findIndex(l => l === '') + 1;
-                editor.setCursor({
-                    line: cursorBefore.line + insertedLineCount,
-                    ch: cursorBefore.ch
-                });
-            } else {
-                editor.setCursor(cursorBefore);
-            }
+    async insertProperties(): Promise<void> {
+        const activeFile = this.plugin.app.workspace.getActiveFile();
+        if (!activeFile) {
+            new Notice('활성화된 파일이 없습니다.');
+            return;
         }
-        new BaseInputModal(this.plugin.app, editor, this.plugin.baseCandidates).open();
+
+        await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+            for (const [key, yamlValue] of Object.entries(this.plugin.settings.userproperties)) {
+                if (frontmatter[key] === undefined) {
+                    try {
+                        frontmatter[key] = parseYaml(yamlValue.trim());
+                    } catch {
+                        frontmatter[key] = yamlValue;
+                    }
+                }
+            }
+
+            if (frontmatter['base'] === undefined) {
+                frontmatter['base'] = this.buildTodayBase();
+            }
+            if (Array.isArray(frontmatter['base'])) {
+                sortBase(frontmatter['base']);
+            }
+
+            const sortedEntries = Object.entries(frontmatter).sort(([a], [b]) => a.localeCompare(b));
+            Object.keys(frontmatter).forEach(key => delete frontmatter[key]);
+            for (const [k, v] of sortedEntries) {
+                frontmatter[k] = v;
+            }
+        });
+
+        new BaseInputModal(this.plugin.app, this.plugin.baseCandidates).open();
     }
 }
 
 const NEW_ITEM_PREFIX = "+ '";
 
 export class BaseInputModal extends SuggestModal<string> {
-    private editor: Editor;
     private candidates: string[];
+    private currentBase: string[];
 
-    constructor(app: App, editor: Editor, candidates: string[]) {
+    constructor(app: App, candidates: string[], initialBase?: string[]) {
         super(app);
-        this.editor = editor;
         this.candidates = candidates;
+        this.currentBase = initialBase ?? this.fetchInitialBase();
         this.setPlaceholder('base에 추가할 항목을 입력하세요.');
+    }
+
+    private fetchInitialBase(): string[] {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) return [];
+        const cache = this.app.metadataCache.getFileCache(activeFile);
+        const base = cache?.frontmatter?.['base'];
+        return Array.isArray(base) ? [...base] : [];
     }
 
     getSuggestions(query: string): string[] {
         const trimmed = query.trim();
-        const currentBase = this.getCurrentBase();
 
         const filtered = this.candidates.filter(c =>
             !DATE_PATTERN.test(c) &&
@@ -96,23 +119,21 @@ export class BaseInputModal extends SuggestModal<string> {
             : null;
 
         const mappedFiltered = filtered.map(c =>
-            currentBase.includes(c) ? `[done] ${c}` : c
+            this.currentBase.includes(c) ? `[done] ${c}` : c
         );
         const done = '✓ 완료';
 
         return filtered.length === 1
-        	? [...mappedFiltered, ...(newItem ? [newItem] : []), done]
-        	: [...(newItem ? [newItem] : []), done, ...mappedFiltered];
+            ? [...mappedFiltered, ...(newItem ? [newItem] : []), done]
+            : [...(newItem ? [newItem] : []), done, ...mappedFiltered];
     }
 
     renderSuggestion(value: string, el: HTMLElement) {
         el.setText(value);
     }
 
-    onChooseSuggestion(value: string) {
-        if (value === '✓ 완료') {
-            return;
-        }
+    async onChooseSuggestion(value: string) {
+        if (value === '✓ 완료') return;
 
         const isDone = value.startsWith('[done] ');
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
@@ -122,41 +143,39 @@ export class BaseInputModal extends SuggestModal<string> {
             : cleaned;
 
         if (isDone) {
-            this.removeFromBase(item);
+            await this.removeFromBase(item);
+            this.currentBase = this.currentBase.filter(c => c !== item);
         } else {
-            this.addToBase(item);
+            await this.addToBase(item);
+            if (!this.currentBase.includes(item)) {
+                this.currentBase.push(item);
+                sortBase(this.currentBase);
+            }
         }
 
-        new BaseInputModal(this.app, this.editor, this.candidates).open();
+        new BaseInputModal(this.app, this.candidates, this.currentBase).open();
     }
 
-    private getCurrentBase(): string[] {
-        const { frontmatter } = parseDocument(this.editor.getValue());
-        return Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-    }
-
-    private saveContent(frontmatter: Record<string, any>, body: string) {
-        const newContent = buildDocument(frontmatter, body);
-        this.editor.setValue(newContent);
+    private async addToBase(item: string) {
         const activeFile = this.app.workspace.getActiveFile();
-        if (activeFile) {
-            this.app.vault.modify(activeFile, newContent);
-        }
-    }
+        if (!activeFile) return;
 
-    private addToBase(item: string) {
-        const { frontmatter, body } = parseDocument(this.editor.getValue());
-        const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
+        let alreadyExists = false;
+        await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+            const base = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
+            if (base.includes(item)) {
+                alreadyExists = true;
+                return;
+            }
+            base.push(item);
+            sortBase(base);
+            frontmatter['base'] = base;
+        });
 
-        if (base.includes(item)) {
+        if (alreadyExists) {
             new Notice(`이미 존재하는 항목입니다: ${item}`);
             return;
         }
-
-        base.push(item);
-        sortBase(base);
-        frontmatter['base'] = base;
-        this.saveContent(frontmatter, body);
 
         if (!this.candidates.includes(item)) {
             this.candidates.push(item);
@@ -164,11 +183,15 @@ export class BaseInputModal extends SuggestModal<string> {
         new Notice(`base에 추가됨: ${item}`);
     }
 
-    private removeFromBase(item: string) {
-        const { frontmatter, body } = parseDocument(this.editor.getValue());
-        const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-        frontmatter['base'] = base.filter(v => v !== item);
-        this.saveContent(frontmatter, body);
+    private async removeFromBase(item: string) {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) return;
+
+        await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+            const base = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
+            frontmatter['base'] = base.filter(v => v !== item);
+        });
+
         new Notice(`base에서 제거됨: ${item}`);
     }
 }

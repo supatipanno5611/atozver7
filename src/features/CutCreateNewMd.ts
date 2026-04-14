@@ -50,11 +50,7 @@ export class CutCreateNewMdFeature {
                 await leaf.openFile(newFile);
                 this.plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
 
-                // 7. 프로퍼티 삽입
-                const newView = leaf.view as MarkdownView;
-                await this.plugin.properties.insertProperties(newView.editor);
-
-                // 8. 원본에서 내용 삭제
+                // 7. 원본에서 내용 삭제
                 if (isFullContent) {
                     await this.plugin.app.vault.modify(originalFile, '');
                 } else {
