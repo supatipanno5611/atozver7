@@ -86,12 +86,14 @@ export class PropertiesFeature {
         }
     }
 
-    async insertProperties(): Promise<void> {
+    async insertProperties(initialItems: string[] = []): Promise<void> {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile) {
             new Notice('활성화된 파일이 없습니다.');
             return;
         }
+
+        const today = this.buildTodayBase();
 
         await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
             for (const [key, yamlValue] of Object.entries(this.plugin.settings.userproperties)) {
@@ -105,7 +107,7 @@ export class PropertiesFeature {
             }
 
             if (frontmatter['base'] === undefined) {
-                frontmatter['base'] = this.buildTodayBase();
+                frontmatter['base'] = [...today, ...initialItems];
             }
             if (Array.isArray(frontmatter['base'])) {
                 sortBase(frontmatter['base']);
@@ -145,21 +147,25 @@ export class BaseInputModal extends SuggestModal<string> {
 
     getSuggestions(query: string): string[] {
         const trimmed = query.trim();
-
+        const done = '✓ 완료';
+    
+        if (!trimmed) {
+            return [done];
+        }
+    
         const filtered = this.candidates.filter(c =>
             !DATE_PATTERN.test(c) &&
             c.toLowerCase().includes(trimmed.toLowerCase())
         );
-
+    
         const newItem = (trimmed && !this.candidates.includes(trimmed))
             ? `${NEW_ITEM_PREFIX}${trimmed}' 추가`
             : null;
-
+    
         const mappedFiltered = filtered.map(c =>
             this.currentBase.includes(c) ? `[done] ${c}` : c
         );
-        const done = '✓ 완료';
-
+    
         return filtered.length === 1
             ? [...mappedFiltered, ...(newItem ? [newItem] : []), done]
             : [...(newItem ? [newItem] : []), done, ...mappedFiltered];

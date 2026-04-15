@@ -23,10 +23,13 @@ export class NewNoteFeature {
 
             const view = leaf.view;
             if (view instanceof MarkdownView) {
-                await this.plugin.properties.insertProperties();
+                await this.plugin.properties.insertProperties([set]);
             }
 
             // 생성 완료 후 번호 갱신
+            if (!this.plugin.baseCandidates.includes(set)) {
+                this.plugin.baseCandidates.push(set);
+            }
             const current = this.plugin.settings.sets[set] ?? 1;
             this.plugin.settings.sets[set] = current + 1;
             await this.plugin.saveSettings();
@@ -93,20 +96,23 @@ class NewNoteModal extends SuggestModal<string> {
     getSuggestions(query: string): string[] {
         const trimmed = query.trim();
         const setNames = Object.keys(this.sets);
-
+    
         if (!trimmed) {
-            return setNames.map(set => this.toCandidate(set));
+            return [];
         }
-
+    
         const fuzzy = prepareFuzzySearch(trimmed.toLowerCase());
         const matched = setNames.filter(s => fuzzy(s.toLowerCase()));
-
-        if (matched.length > 0) {
-            return matched.map(set => this.toCandidate(set));
-        }
-
-        // 매칭된 set이 없으면 새 set으로 제안
-        return [`${trimmed}-1`];
+    
+        const newItem = !setNames.includes(trimmed)
+            ? `+ '${trimmed}' 새 set`
+            : null;
+    
+        const matchedCandidates = matched.map(set => this.toCandidate(set));
+    
+        return matched.length === 1
+            ? [...matchedCandidates, ...(newItem ? [newItem] : [])]
+            : [...(newItem ? [newItem] : []), ...matchedCandidates];
     }
 
     private toCandidate(set: string): string {
@@ -119,6 +125,11 @@ class NewNoteModal extends SuggestModal<string> {
     }
 
     onChooseSuggestion(value: string) {
+        if (value.startsWith("+ '")) {
+            const trimmed = this.inputEl.value.trim();
+            this.onSubmit(`${trimmed}-1`, trimmed);
+            return;
+        }
         const match = value.match(/^(.+)-(\d+)$/);
         if (!match) return;
         const set = match[1] ?? value;
