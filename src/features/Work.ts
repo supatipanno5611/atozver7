@@ -1,5 +1,6 @@
 import type ATOZVER6Plugin from '../main';
 import { FileView, MarkdownView, Notice, TFile, WorkspaceLeaf, moment } from 'obsidian';
+import { pickMostRecentLeaf } from '../utils';
 
 export class WorkFeature {
     private isWorkLaterToggling = false;
@@ -254,5 +255,26 @@ export class WorkFeature {
             // 플래그 해제 (무조건 실행 보장)
             this.isWorkLaterToggling = false;
         }
+    }
+
+    async focusMainEditor() {
+        const { workspace } = this.plugin.app;
+    
+        const leaves: WorkspaceLeaf[] = [];
+        workspace.iterateRootLeaves((leaf) => {
+            if (leaf.view instanceof MarkdownView && leaf.view.file) {
+                leaves.push(leaf);
+            }
+        });
+    
+        const leaf = pickMostRecentLeaf(leaves, this.plugin.app);
+    
+        if (!leaf) {
+            await this.openWorkFile();
+            return;
+        }
+    
+        workspace.setActiveLeaf(leaf, { focus: true });
+        (leaf.view as MarkdownView).editor.focus();
     }
 }

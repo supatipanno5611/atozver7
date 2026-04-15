@@ -1,5 +1,15 @@
 import { parseYaml, stringifyYaml } from 'obsidian';
 import { ParsedDocument } from './types';
+import { WorkspaceLeaf } from 'obsidian';
+
+export function pickMostRecentLeaf(leaves: WorkspaceLeaf[], app: any): WorkspaceLeaf | null {
+    if (leaves.length === 0) return null;
+    const recentLeaves: WorkspaceLeaf[] = app.workspace.getRecentLeaves?.() ?? [];
+    for (const recent of recentLeaves) {
+        if (leaves.includes(recent)) return recent;
+    }
+    return leaves[0] ?? null;
+}
 
 export function parseDocument(raw: string): ParsedDocument {
     const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---(?:\n|$)/;

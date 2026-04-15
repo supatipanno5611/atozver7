@@ -13,13 +13,13 @@ import { HeadingNavigaterFeature } from './features/HeadingNavigater';
 import { OrdinaryFeature } from './features/Ordinary';
 import { PropertiesFeature } from './features/Properties';
 import { CutCopyFeature } from './features/CutCopy';
-import { CyclePinTabFeature } from './features/CyclePinTab';
+import { CycleTabFeature } from './features/CycleTab';
 import { SaveMDFeature } from './features/SaveMD';
 import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { TrashFeature } from './features/Trash';
 import { WorkFeature } from './features/Work';
-import { TaskPlanFeature } from './features/TaskPlan';
+import { TaskFeature } from './features/Task';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
 import { ViriyaFeature } from './features/ViriyaFeature';
@@ -40,13 +40,13 @@ export default class ATOZVER6Plugin extends Plugin {
     ordinary: OrdinaryFeature;
     properties: PropertiesFeature;
     cutCopy: CutCopyFeature;
-    cyclePinTab: CyclePinTabFeature;
+    cycleTab: CycleTabFeature;
     saveMD: SaveMDFeature;
     snippets: SnippetsFeature;
     symbols: SymbolsFeature;
     trash: TrashFeature;
     work: WorkFeature;
-    taskPlan: TaskPlanFeature;
+    task: TaskFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
     viriya: ViriyaFeature;
     titleFeature: TitleFeature;
@@ -74,13 +74,13 @@ export default class ATOZVER6Plugin extends Plugin {
         this.ordinary = new OrdinaryFeature(this);
         this.properties = new PropertiesFeature(this);
         this.cutCopy = new CutCopyFeature(this);
-        this.cyclePinTab = new CyclePinTabFeature(this);
+        this.cycleTab = new CycleTabFeature(this);
         this.saveMD = new SaveMDFeature(this);
         this.snippets = new SnippetsFeature(this);
         this.symbols = new SymbolsFeature(this);
         this.trash = new TrashFeature(this);
         this.work = new WorkFeature(this);
-        this.taskPlan = new TaskPlanFeature(this);
+        this.task = new TaskFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.viriya = new ViriyaFeature(this);
         this.newNote = new NewNoteFeature(this);
@@ -233,13 +233,8 @@ export default class ATOZVER6Plugin extends Plugin {
             }
         });
 
-        // [TaskPlan]
-        this.addRibbonIcon('lucide-square-check', '할 일 문서 열기', () => {
-            this.taskPlan.openTaskPlanFile(this.settings.taskFilePath);
-        });
-        this.addRibbonIcon('lucide-book-text', '계획 문서 열기', () => {
-            this.taskPlan.openTaskPlanFile(this.settings.planFilePath);
-        });
+        // [Task]
+        this.addRibbonIcon('lucide-square-check', '할 일 문서 사이드바 토글', () => this.task.openTaskInLeftSidebar());
 
         // [Trash]
         this.addRibbonIcon('lucide-trash', '휴지통 문서 사이드바 토글', () => this.trash.toggleTrashFileInRightSidebar());
@@ -266,8 +261,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'cut-and-create-new-md', name: '내용을 잘라내어 새 노트 만들기', icon: 'lucide-file-input', editorCallback: (editor: Editor) => this.cutCreateNewMd.cutAndCreateNewMd(editor) });
 
         // [CyclePinTab]
-        this.addCommand({ id: 'cycle-tabs-context-aware', name: '상황별 탭 순환', callback: () => this.cyclePinTab.cycleTabsContextAware() });
-        this.addCommand({ id: 'jump-between-pinned-unpinned', name: '고정 탭과 일반 탭 사이 건너가기', callback: () => this.cyclePinTab.smartJump() });
+        this.addCommand({ id: 'cycle-tabs', name: '탭 순환', callback: () => this.cycleTab.cycleAllTabs() });
 
         // [Executes]
         this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', hotkeys: [{ modifiers: ["Mod"], key: "Delete" }], callback: () => this.executes.executeDeleteParagraph() });
@@ -354,10 +348,9 @@ export default class ATOZVER6Plugin extends Plugin {
             callback: () => this.switcher.openTitleSwitcher()
         });
 
-        // [TaskPlan]
-        this.addCommand({ id: 'smart-toggle-task-plan', name: '할 일 계획 스마트 토글', callback: () => this.taskPlan.openTaskPlanSmart() });
-        this.addCommand({ id: 'move-line-taskplan', name: '할 일 이동', icon: 'lucide-arrow-left-right', editorCallback: (editor: Editor, view: MarkdownView) => this.taskPlan.handleLineMove(editor, view) });
-
+        // [Task]
+        this.addCommand({ id: 'toggle-task-sidebar', name: '할 일 문서 사이드바 토글', callback: () => this.task.openTaskInLeftSidebar() });
+        
         // [Title]
         this.addCommand({
             id: 'convert-filenamelike-to-title',
@@ -379,6 +372,7 @@ export default class ATOZVER6Plugin extends Plugin {
                 await this.work.backupAndClear(result.file, result.content);
             }
         }});
+        this.addCommand({ id: 'focus-main-editor', name: '메인 에디터로 포커스 이동', callback: () => this.work.focusMainEditor() });
 
         // [Viriya]
         this.addCommand({
@@ -414,14 +408,6 @@ export default class ATOZVER6Plugin extends Plugin {
                             }
                         });
                 })
-            })
-        );
-
-        // [CyclePinTab]
-        this.registerEvent(
-            this.app.workspace.on('active-leaf-change', (leaf) => {
-                if (this.cyclePinTab.isInternalNavigation || !leaf) return;
-                this.cyclePinTab.recordLeafHistory(leaf);
             })
         );
 

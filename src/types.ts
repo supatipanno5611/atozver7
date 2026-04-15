@@ -20,7 +20,6 @@ export interface ATOZSettings {
     symbolPairs: Record<string, string>;
     recentSymbols: Record<string, number>;
     taskFilePath: string;
-    planFilePath: string;
     trashFilePath: string;
     workFilePath: string;
     laterFilePath: string;
@@ -37,7 +36,7 @@ export interface ParsedDocument {
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
     // CertainMd
-    CertainMdPath: 'how/termux.md',
+    CertainMdPath: '',
 
     // Cursor Center
     isCursorCenterEnabled: false,
@@ -50,7 +49,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     
     // Properties
     userproperties: {
-        "aliases": "[]"
+        "title": "[]"
     },
     
     // SaveMD
@@ -93,9 +92,8 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     },
     recentSymbols: {},
     
-    // TaskPlan
+    // Task
     taskFilePath: 'task.md',
-    planFilePath: 'plan.md',
 
     // Trash
     trashFilePath: 'trash.md',
