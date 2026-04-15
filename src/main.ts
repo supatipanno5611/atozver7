@@ -108,7 +108,7 @@ export default class ATOZVER6Plugin extends Plugin {
          * 각 단계를 명시적으로 순서대로 await 처리합니다.
          */
         this.app.workspace.onLayoutReady(async () => {
-
+        
         	// [Properties] vault 전체 base, title  값 수집
         	this.baseCandidates = this.collectBaseCandidates();
         	this.titleCandidates = this.collectTitleCandidates();

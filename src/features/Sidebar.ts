@@ -7,7 +7,7 @@ export class SidebarFeature {
     async openTaskInLeftSidebar() {
         await this.openInSidebar(this.plugin.settings.taskFilePath, 'left');
     }
-    
+
     async openLaterInRightSidebar() {
         await this.openInSidebar(this.plugin.settings.laterFilePath, 'right');
     }

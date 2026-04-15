@@ -2,7 +2,7 @@ import type ATOZVER6Plugin from '../main';
 import { App, SuggestModal } from 'obsidian';
 import { SwitcherItem } from '../types';
 
-const FILE_SEARCH_PREFIX = '-';
+const FILE_SEARCH_PREFIX = '@';
 
 class TitleSwitcherModal extends SuggestModal<SwitcherItem> {
     private plugin: ATOZVER6Plugin;
