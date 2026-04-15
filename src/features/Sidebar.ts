@@ -5,14 +5,14 @@ export class SidebarFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
     async openTaskInLeftSidebar() {
-        await this.openInSidebar(this.plugin.settings.taskFilePath, 'left');
+        await this.toggleSidebar(this.plugin.settings.taskFilePath, 'left');
     }
 
     async openLaterInRightSidebar() {
-        await this.openInSidebar(this.plugin.settings.laterFilePath, 'right');
+        await this.toggleSidebar(this.plugin.settings.laterFilePath, 'right');
     }
 
-    private async openInSidebar(path: string, side: 'left' | 'right') {
+    private async toggleSidebar(path: string, side: 'left' | 'right') {
         const { workspace, vault } = this.plugin.app;
 
         if (!path || path.trim() === '') {
@@ -23,6 +23,11 @@ export class SidebarFeature {
         const split = side === 'left' ? workspace.leftSplit : workspace.rightSplit;
         if (!split) {
             new Notice(`${side === 'left' ? '왼쪽' : '오른쪽'} 사이드바를 사용할 수 없는 환경입니다.`);
+            return;
+        }
+
+        if (!(split as any).collapsed) {
+            split.collapse();
             return;
         }
 
@@ -49,8 +54,8 @@ export class SidebarFeature {
             const duplicates = matchingLeaves.slice(1);
             if (duplicates.length > 0) {
                 duplicates.forEach(l => l.detach());
-                new Notice(`중복 탭 ${duplicates.length}개를 닫았습니다.`);
             }
+            workspace.revealLeaf(first);
             workspace.setActiveLeaf(first, { focus: true });
             if (first.view instanceof MarkdownView) first.view.editor.focus();
             return;
