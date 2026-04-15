@@ -15,8 +15,8 @@ class TitleSwitcherModal extends SuggestModal<SwitcherItem> {
     }
 
     getSuggestions(query: string): SwitcherItem[] {
-        const isFileMode = query.startsWith(FILE_SEARCH_PREFIX);
-        const searchText = isFileMode ? query.slice(1).toLowerCase() : query.toLowerCase();
+    	const isFileMode = query.startsWith(this.plugin.settings.switcherFilePrefix);
+    	const searchText = isFileMode ? query.slice(this.plugin.settings.switcherFilePrefix.length).toLowerCase() : query.toLowerCase();
 
         let candidates: SwitcherItem[];
 

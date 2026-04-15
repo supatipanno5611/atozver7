@@ -14,6 +14,7 @@ export interface ATOZSettings {
     snippetLimit: number;
     snippets: string[];
     recentSnippets: Record<string, number>;
+    switcherFilePrefix: string;
     recentSwitcher: Record<string, number>;
     symbolTrigger: string;
     symbolLimit: number;
@@ -69,6 +70,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     recentSnippets: {},
 
     // Switcher
+    switcherFilePrefix: '@',
     recentSwitcher: {},
     
     // Symbols
