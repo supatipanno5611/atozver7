@@ -1,11 +1,11 @@
 import type ATOZVER6Plugin from '../main';
-import { Notice, TFile } from 'obsidian';
+import { Notice, TFile, TFolder } from 'obsidian';
 import { moment } from 'obsidian';
 import { parseDocument, buildDocument, DATE_PATTERN, INTERNAL_LINK_PATTERN, ENGLISH_ONLY_PATTERN, sortBase } from '../utils';
 
-const VIRIYA_MD_PATH = 'viriya/content';
+const VIRIYA_MD_PATH = 'viriya/content/pages';
 
-export class ViriyaFeature {
+export class Viriya {
     constructor(private plugin: ATOZVER6Plugin) {}
 
     async addActiveFileToViriya(): Promise<void> {
@@ -29,17 +29,22 @@ export class ViriyaFeature {
             return;
         }
 
-        const targetPath = `${VIRIYA_MD_PATH}/${activeFile.name}`;
-
-        if (!vault.getAbstractFileByPath(VIRIYA_MD_PATH)) {
+        const targetFolder = vault.getAbstractFileByPath(VIRIYA_MD_PATH);
+        if (!(targetFolder instanceof TFolder)) {
             new Notice('대상 폴더가 없습니다.');
             return;
         }
 
-        await this.copyFile(activeFile, targetPath);
-        await this.processCopiedBase(targetPath);
-        await this.updateOriginalBase(activeFile, targetPath);
-        new Notice(`${activeFile.basename}을 viriya에 추가했습니다.`);
+        const targetPath = `${VIRIYA_MD_PATH}/${activeFile.name}`;
+
+        try {
+            await this.copyFile(activeFile, targetPath);
+            await this.processCopiedBase(targetPath);
+            await this.updateOriginalBase(activeFile, targetPath);
+            new Notice(`${activeFile.basename}을 viriya에 추가했습니다.`);
+        } catch (e) {
+            new Notice(e instanceof Error ? e.message : '오류가 발생했습니다.');
+        }
     }
 
     private async copyFile(file: TFile, targetPath: string): Promise<void> {
@@ -57,7 +62,7 @@ export class ViriyaFeature {
         const { vault } = this.plugin.app;
 
         const copiedFile = vault.getAbstractFileByPath(targetPath);
-        if (!(copiedFile instanceof TFile)) return;
+        if (!(copiedFile instanceof TFile)) throw new Error('복사된 파일을 찾을 수 없습니다.');
 
         const raw = await vault.read(copiedFile);
         const { frontmatter, body } = parseDocument(raw);
@@ -90,7 +95,7 @@ export class ViriyaFeature {
         const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
 
         const filtered = base.filter(v =>
-            !(typeof v === 'string' && v.startsWith('[[viriya/content'))
+            !(typeof v === 'string' && v.startsWith(`[[${VIRIYA_MD_PATH}`))
         );
 
         const linkPath = targetPath.replace(/\.md$/, '');

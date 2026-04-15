@@ -145,11 +145,17 @@ export class WorkFeature {
     async focusMainEditor() {
         const { workspace } = this.plugin.app;
     
+        const activeLeaf = workspace.getMostRecentLeaf();
+        const isMainArea = activeLeaf?.view.containerEl.closest('.mod-root') !== null;
+    
+        if (isMainArea) {
+        	this.plugin.cycleTab.cycleAllTabs(true);
+            return;
+        }
+    
         const leaves: WorkspaceLeaf[] = [];
         workspace.iterateRootLeaves((leaf) => {
-            if (leaf.view instanceof MarkdownView && leaf.view.file) {
-                leaves.push(leaf);
-            }
+            leaves.push(leaf);
         });
     
         const leaf = pickMostRecentLeaf(leaves, this.plugin.app);
@@ -160,6 +166,6 @@ export class WorkFeature {
         }
     
         workspace.setActiveLeaf(leaf, { focus: true });
-        (leaf.view as MarkdownView).editor.focus();
+        if (leaf.view instanceof MarkdownView) leaf.view.editor.focus();
     }
 }

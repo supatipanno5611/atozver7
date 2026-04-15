@@ -5,14 +5,13 @@ import { pickMostRecentLeaf } from '../utils';
 export class CycleTabFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
-    cycleAllTabs() {
+    cycleAllTabs(markdownOnly = false) {
         const { workspace } = this.plugin.app;
 
         const leaves: WorkspaceLeaf[] = [];
         workspace.iterateRootLeaves((leaf) => {
-            if (leaf.view instanceof MarkdownView && leaf.view.file) {
-                leaves.push(leaf);
-            }
+            if (markdownOnly && !(leaf.view instanceof MarkdownView && leaf.view.file)) return;
+            leaves.push(leaf);
         });
 
         if (leaves.length <= 1) return;

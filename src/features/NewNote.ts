@@ -17,7 +17,9 @@ export class NewNoteFeature {
             const path = normalizePath(`${filename}.md`);
             const newFile = await this.plugin.app.vault.create(path, '');
 
-            const leaf = this.plugin.app.workspace.getLeaf(false);
+            let leaf = this.plugin.app.workspace.getLeaf(false);
+            const isMainArea = leaf.view.containerEl.closest('.mod-root') !== null;
+            if (!isMainArea) leaf = this.plugin.app.workspace.getLeaf('tab');
             await leaf.openFile(newFile);
             this.plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
 

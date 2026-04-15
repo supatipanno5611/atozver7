@@ -80,3 +80,8 @@ body.hide-viriya-folder .nav-folder-title[data-path="viriya"],
 body.hide-viriya-folder .nav-folder-title[data-path^="viriya"] + .nav-folder-children {
     display: none;
 }
+
+/* Tab frontmatter width */
+body.tablet-narrow-frontmatter .metadata-container {
+    max-width: 400px;
+}

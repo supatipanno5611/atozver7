@@ -20,7 +20,7 @@ import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
-import { ViriyaFeature } from './features/ViriyaFeature';
+import { Viriya } from './features/Viriya';
 import { TitleFeature, TitleSuggestions } from './features/Title';
 import { NewNoteFeature } from './features/NewNote';
 import { SwitcherFeature } from './features/Switcher';
@@ -45,7 +45,7 @@ export default class ATOZVER6Plugin extends Plugin {
     symbols: SymbolsFeature;
     work: WorkFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
-    viriya: ViriyaFeature;
+    viriya: Viriya;
     titleFeature: TitleFeature;
     newNote: NewNoteFeature;
     switcher: SwitcherFeature;
@@ -78,7 +78,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
-        this.viriya = new ViriyaFeature(this);
+        this.viriya = new Viriya(this);
         this.newNote = new NewNoteFeature(this);
         this.switcher = new SwitcherFeature(this);
         this.mobile = new MobileFeature(this);
@@ -199,10 +199,13 @@ export default class ATOZVER6Plugin extends Plugin {
         return map;
     }
 
-    // --- attachment ---
-
+    // --- switcher 캐시 수집 메서드 ---
     collectAllFileCandidates(): SwitcherItem[] {
         return this.app.vault.getFiles()
+            .filter(f => {
+                if (!f.path.startsWith('viriya/')) return true;
+                return f.path.startsWith('viriya/content/') || f.path.startsWith('viriya/public/');
+            })
             .map(f => ({ display: f.name, path: f.path }));
     }
 
