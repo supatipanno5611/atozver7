@@ -14,6 +14,7 @@ export interface ATOZSettings {
     snippetLimit: number;
     snippets: string[];
     recentSnippets: Record<string, number>;
+    recentSwitcher: Record<string, number>;
     symbolTrigger: string;
     symbolLimit: number;
     symbols: SymbolItem[];
@@ -66,6 +67,9 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     snippetLimit: 5,
     snippets: ["하나", "둘", "셋"],
     recentSnippets: {},
+
+    // Switcher
+    recentSwitcher: {},
     
     // Symbols
     symbolTrigger: "~",
