@@ -1,5 +1,6 @@
 import type ATOZVER6Plugin from '../main';
 import { Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, Notice } from 'obsidian';
+import { escapeRegex } from '../utils';
 
 const EMPTY_QUERY = '__EMPTY_QUERY__';
 const NO_RESULT_PREFIX = '__NO_RESULT__:';
@@ -51,7 +52,7 @@ export class TitleFeature {
             let bodyChanged = false;
 
             for (const linkCache of sortedLinks) {
-            	if (linkCache.original.includes('|')) continue;
+                if (linkCache.original.includes('|')) continue;
                 const baseFileName = linkCache.link.split(/[#^]/)[0]?.trim() ?? '';
                 const targetTitle = fileToTitle.get(baseFileName);
                 if (!targetTitle) continue;
@@ -114,8 +115,9 @@ export class TitleSuggestions extends EditorSuggest<{ title: string; filePath: s
     }
 
     onTrigger(cursor: EditorPosition, editor: Editor): EditorSuggestTriggerInfo | null {
+        const trigger = this.plugin.settings.titleTrigger;
         const line = editor.getLine(cursor.line).substring(0, cursor.ch);
-        const match = line.match(/~([^~\s]*)$/);
+        const match = line.match(new RegExp(`${escapeRegex(trigger)}([^${escapeRegex(trigger)}\\s]*)$`));
         if (!match) return null;
         return {
             start: { line: cursor.line, ch: match.index! },

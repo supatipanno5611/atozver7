@@ -9,6 +9,7 @@ export interface ATOZSettings {
     saveMdAutoSaveTarget: string;
     saveMdFolderPath: string;
     saveMdDateFormat: string;
+    titleTrigger: string;
     snippetTrigger: string;
     snippetLimit: number;
     snippets: string[];
@@ -58,15 +59,18 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     saveMdAutoSaveTarget: "",
     saveMdFolderPath: "save",
     saveMdDateFormat: "YYYYMMDDHHmmss",
+
+    // Title
+    titleTrigger: '/',
     
     // Snippets
-    snippetTrigger: "\\",
+    snippetTrigger: "@",
     snippetLimit: 5,
     snippets: ["하나", "둘", "셋"],
     recentSnippets: {},
     
     // Symbols
-    symbolTrigger: "/",
+    symbolTrigger: "~",
     symbolLimit: 5,
     symbols: [
         { id: "\"", symbol: "“", closing: "”" },
