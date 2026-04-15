@@ -229,10 +229,6 @@ export default class ATOZVER6Plugin extends Plugin {
                 new Notice("활성화된 파일이 없습니다.");
             }
         });
-
-        // [Sidebar]
-        this.addRibbonIcon('lucide-square-check', '할 일 문서 열기', () => this.sidebar.openTaskInLeftSidebar());
-        this.addRibbonIcon('lucide-history', '보관 문서 열기', () => this.sidebar.openLaterInRightSidebar());
         
         // [Work]
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => this.work.openWorkFile());
