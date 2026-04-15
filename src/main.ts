@@ -23,7 +23,7 @@ import { TaskPlanFeature } from './features/TaskPlan';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
 import { ViriyaFeature } from './features/ViriyaFeature';
-import { TitleSuggestions } from './features/Title';
+import { TitleFeature, TitleSuggestions } from './features/Title';
 import { NewNoteFeature } from './features/NewNote';
 import { SwitcherFeature } from './features/Switcher';
 import { MobileFeature } from './features/Mobile';
@@ -49,6 +49,7 @@ export default class ATOZVER6Plugin extends Plugin {
     taskPlan: TaskPlanFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
     viriya: ViriyaFeature;
+    titleFeature: TitleFeature;
     newNote: NewNoteFeature;
     switcher: SwitcherFeature;
     mobile: MobileFeature;
@@ -85,6 +86,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.newNote = new NewNoteFeature(this);
         this.switcher = new SwitcherFeature(this);
         this.mobile = new MobileFeature(this);
+        this.titleFeature = new TitleFeature(this);
         // --- 설정 탭 등록 ---
         this.addSettingTab(new ATOZSettingTab(this.app, this));
 
@@ -355,6 +357,13 @@ export default class ATOZVER6Plugin extends Plugin {
         // [TaskPlan]
         this.addCommand({ id: 'smart-toggle-task-plan', name: '할 일 계획 스마트 토글', callback: () => this.taskPlan.openTaskPlanSmart() });
         this.addCommand({ id: 'move-line-taskplan', name: '할 일 이동', icon: 'lucide-arrow-left-right', editorCallback: (editor: Editor, view: MarkdownView) => this.taskPlan.handleLineMove(editor, view) });
+
+        // [Title]
+        this.addCommand({
+            id: 'convert-filenamelike-to-title',
+            name: '내부링크를 title 별칭으로 변환',
+            callback: () => this.titleFeature.convertWikilinks()
+        });
 
         // [Trash]
         this.addCommand({ id: 'toggle-trash-file-sidebar', name: '휴지통 문서 사이드바 토글', callback: () => this.trash.toggleTrashFileInRightSidebar() });
