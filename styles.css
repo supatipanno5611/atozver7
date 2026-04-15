@@ -74,3 +74,9 @@ body.notice-bottom .notice {
 .empty-state-action-list .empty-state-action:not(.title-switcher-empty-tab-action):not(.atoz-new-note-empty-tab-action) {
     display: none;
 }
+
+/* viriya folder phone hide */
+body.hide-viriya-folder .nav-folder-title[data-path="viriya"],
+body.hide-viriya-folder .nav-folder-title[data-path^="viriya"] + .nav-folder-children {
+    display: none;
+}

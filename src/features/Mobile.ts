@@ -84,20 +84,20 @@ class EmptyTabMonitor {
 
             const titleBtn = buttonListEl.createDiv({
                 cls: ['empty-state-action', 'tappable', EMPTY_TAB_TITLE_CLS],
-                text: '파일로 이동하기 (Ctrl + O)',
+                text: '파일로 이동하기',
             });
             titleBtn.addEventListener('click', callbacks.onTitleSwitcher);
 
             const newNoteBtn = buttonListEl.createDiv({
                 cls: ['empty-state-action', 'tappable', EMPTY_TAB_NEW_NOTE_CLS],
-                text: '새 파일 생성하기 (Ctrl + N)',
+                text: '새 파일 생성하기',
             });
             newNoteBtn.addEventListener('click', callbacks.onNewNote);
 
-            buttonListEl.insertBefore(newNoteBtn, buttonListEl.firstElementChild);
             buttonListEl.insertBefore(titleBtn, buttonListEl.firstElementChild);
+            buttonListEl.insertBefore(newNoteBtn, buttonListEl.firstElementChild);
 
-            this.buttonByLeaf.set(leaf, [titleBtn, newNoteBtn]);
+            this.buttonByLeaf.set(leaf, [newNoteBtn, titleBtn]);
         });
     }
 }
@@ -111,11 +111,12 @@ export class MobileFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
     install(callbacks: MobileCallbacks): void {
-        if (Platform.isMobileApp && window.screen.width >= 800) {
-            document.body.classList.add('mobile-toolbar-off');
-        }
-        if (Platform.isMobileApp && window.screen.width < 800) {
-            document.body.classList.add('notice-bottom');
+        if (Platform.isMobileApp) {
+            if (window.screen.width >= 800) {
+                document.body.classList.add('mobile-toolbar-off');
+            } else {
+                document.body.classList.add('notice-bottom', 'hide-viriya-folder');
+            }
         }
 
         this.mobileLauncher.install(this.plugin, callbacks.onTitleSwitcher);
@@ -123,8 +124,7 @@ export class MobileFeature {
     }
 
     uninstall(): void {
-        document.body.classList.remove('mobile-toolbar-off');
-        document.body.classList.remove('notice-bottom');
+    	document.body.classList.remove('mobile-toolbar-off', 'notice-bottom', 'hide-viriya-folder');
         this.mobileLauncher.uninstall();
         this.emptyTabMonitor.uninstall();
     }
