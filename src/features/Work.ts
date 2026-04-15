@@ -1,5 +1,5 @@
 import type ATOZVER6Plugin from '../main';
-import { FileView, MarkdownView, Notice, TFile, WorkspaceLeaf, moment } from 'obsidian';
+import { MarkdownView, Notice, TFile, WorkspaceLeaf, moment } from 'obsidian';
 import { pickMostRecentLeaf } from '../utils';
 
 export class WorkFeature {
@@ -141,122 +141,7 @@ export class WorkFeature {
             new Notice('작업 문서를 여는 중 오류가 발생했습니다.');
         }
     }
-
-    /**
-     * [메서드 5] toggleLaterFileInRightSidebar
-     * later.md 파일이 오른쪽 사이드바에 있다면 닫고(detach), 없다면 엽니다.
-     */
-    async toggleLaterFileInRightSidebar() {
-        // Race Condition 방지: 명령어가 빠르게 여러 번 실행되는 경우를 대비해, 실행 중에는 잠금(lock)을 걸어서 중복 실행을 방지할 수 있습니다.
-        if (this.isWorkLaterToggling) return;
-        this.isWorkLaterToggling = true;
-
-        try {
-            const { workspace, vault } = this.plugin.app;
-            const path = this.plugin.settings.laterFilePath;
-
-            // 설정값 유효성 검사 (빈 문자열 체크)
-            if (!path || path.trim() === "") {
-                new Notice('설정된 파일 경로가 없습니다. 플러그인 설정을 확인해주세요.');
-                return;
-            }
-
-            // 오른쪽 사이드바 지원 환경 체크
-            // Obsidian API상 rightSplit은 존재하지만 null일 수도 있는 상황 방어
-            if (!workspace.rightSplit) {
-                new Notice('오른쪽 사이드바를 사용할 수 없는 환경입니다.');
-                return;
-            }
-
-            // 파일 객체 확인
-            const file = vault.getAbstractFileByPath(path);
-            if (!(file instanceof TFile)) {
-                new Notice(`파일을 찾을 수 없습니다: ${path}`);
-                return;
-            }
-
-            // 모든 뷰 타입 검색: Markdown이 아닌 경우(이미지, PDF 등)도 감지하기 위해 iterateAllLeaves 사용
-            let existingLeaf: WorkspaceLeaf | null = null;
-            workspace.iterateAllLeaves((leaf) => {
-                // 이미 찾았으면 패스
-                if (existingLeaf) return;
-
-                // 오른쪽 사이드바에 있고, 파일 경로가 일치하는지 확인
-                // (leaf.view as FileView)로 캐스팅하여 file 속성 접근
-                const viewType = leaf.view.getViewType();
-                const view = leaf.view as FileView;
-                if (
-                    leaf.getRoot() === workspace.rightSplit &&
-                    viewType === 'markdown' && // Markdown 뷰인지 확인
-                    view.file?.path === path
-                ) {
-                    existingLeaf = leaf;
-                }
-            });
-
-            // 3. 토글 로직 실행
-            if (existingLeaf) {
-                // [Case A] 닫기 (Detach)
-                (existingLeaf as WorkspaceLeaf).detach();
-
-                // 닫은 후 메인 에디터 포커스 복구
-                const mainLeaf = workspace.getMostRecentLeaf();
-                if (mainLeaf) {
-                    workspace.setActiveLeaf(mainLeaf, { focus: true });
-                    // 커서 주기
-                    const view = mainLeaf.view;
-                    if (view instanceof MarkdownView) {
-                        view.editor.focus();
-                    }
-                }
-            } else {
-                // [Case B] 열기 (Open)
-
-                // 기존 탭 덮어쓰기 방지
-                let leaf: WorkspaceLeaf | null | undefined = workspace.getLeavesOfType('empty').find(l => l.getRoot() === workspace.rightSplit);
-
-                if (!leaf) {
-                    // 빈 탭이 없으면 새 탭 생성
-                    leaf = workspace.getRightLeaf(true);
-                }
-
-                // leaf 생성 실패 방어
-                if (!leaf) {
-                    new Notice('오른쪽 사이드바에 새 탭을 열 수 없습니다.');
-                    return;
-                }
-
-                // 파일 열기 예외 처리
-                try {
-                    await leaf.openFile(file);
-
-                    // 사이드바가 접혀 있다면 펼치기
-                    workspace.revealLeaf(leaf);
-
-                    // 포커스 이동
-                    workspace.setActiveLeaf(leaf, { focus: true });
-                    // 커서 주기
-                    const view = leaf.view;
-                    if (view instanceof MarkdownView) {
-                        view.editor.focus();
-                    }
-
-                } catch (e) {
-                    console.error(e);
-                    new Notice(`파일 열기 실패: ${e instanceof Error ? e.message : '알 수 없는 오류'}`);
-                    // 실패한 리프 정리 (빈 탭으로 남기거나 닫음)
-                    leaf.detach();
-                }
-            }
-        } catch (err) {
-            // 예상치 못한 전체 로직 에러
-            console.error("Toggle Error:", err);
-        } finally {
-            // 플래그 해제 (무조건 실행 보장)
-            this.isWorkLaterToggling = false;
-        }
-    }
-
+    
     async focusMainEditor() {
         const { workspace } = this.plugin.app;
     

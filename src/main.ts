@@ -17,9 +17,7 @@ import { CycleTabFeature } from './features/CycleTab';
 import { SaveMDFeature } from './features/SaveMD';
 import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
-import { TrashFeature } from './features/Trash';
 import { WorkFeature } from './features/Work';
-import { TaskFeature } from './features/Task';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
 import { ViriyaFeature } from './features/ViriyaFeature';
@@ -27,6 +25,7 @@ import { TitleFeature, TitleSuggestions } from './features/Title';
 import { NewNoteFeature } from './features/NewNote';
 import { SwitcherFeature } from './features/Switcher';
 import { MobileFeature } from './features/Mobile';
+import { SidebarFeature } from './features/Sidebar';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings: ATOZSettings;
@@ -44,15 +43,14 @@ export default class ATOZVER6Plugin extends Plugin {
     saveMD: SaveMDFeature;
     snippets: SnippetsFeature;
     symbols: SymbolsFeature;
-    trash: TrashFeature;
     work: WorkFeature;
-    task: TaskFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
     viriya: ViriyaFeature;
     titleFeature: TitleFeature;
     newNote: NewNoteFeature;
     switcher: SwitcherFeature;
     mobile: MobileFeature;
+    sidebar: SidebarFeature;
     
     baseCandidates: string[] = [];
     titleCandidates: Map<string, string> = new Map();
@@ -78,15 +76,14 @@ export default class ATOZVER6Plugin extends Plugin {
         this.saveMD = new SaveMDFeature(this);
         this.snippets = new SnippetsFeature(this);
         this.symbols = new SymbolsFeature(this);
-        this.trash = new TrashFeature(this);
         this.work = new WorkFeature(this);
-        this.task = new TaskFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.viriya = new ViriyaFeature(this);
         this.newNote = new NewNoteFeature(this);
         this.switcher = new SwitcherFeature(this);
         this.mobile = new MobileFeature(this);
         this.titleFeature = new TitleFeature(this);
+        this.sidebar = new SidebarFeature(this);
         // --- 설정 탭 등록 ---
         this.addSettingTab(new ATOZSettingTab(this.app, this));
 
@@ -233,15 +230,12 @@ export default class ATOZVER6Plugin extends Plugin {
             }
         });
 
-        // [Task]
-        this.addRibbonIcon('lucide-square-check', '할 일 문서 사이드바 토글', () => this.task.openTaskInLeftSidebar());
-
-        // [Trash]
-        this.addRibbonIcon('lucide-trash', '휴지통 문서 사이드바 토글', () => this.trash.toggleTrashFileInRightSidebar());
-
+        // [Sidebar]
+        this.addRibbonIcon('lucide-square-check', '할 일 문서 열기', () => this.sidebar.openTaskInLeftSidebar());
+        this.addRibbonIcon('lucide-history', '보관 문서 열기', () => this.sidebar.openLaterInRightSidebar());
+        
         // [Work]
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => this.work.openWorkFile());
-        this.addRibbonIcon('lucide-file-pen-line', '백업 문서 사이드바 토글', () => this.work.toggleLaterFileInRightSidebar());
     }
 
     registerCommands() {
@@ -260,7 +254,7 @@ export default class ATOZVER6Plugin extends Plugin {
         // [CutCreateNewMd]
         this.addCommand({ id: 'cut-and-create-new-md', name: '내용을 잘라내어 새 노트 만들기', icon: 'lucide-file-input', editorCallback: (editor: Editor) => this.cutCreateNewMd.cutAndCreateNewMd(editor) });
 
-        // [CyclePinTab]
+        // [CycleTab]
         this.addCommand({ id: 'cycle-tabs', name: '탭 순환', callback: () => this.cycleTab.cycleAllTabs() });
 
         // [Executes]
@@ -336,6 +330,10 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: "lucide-chevrons-left", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowLeft"}], editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
         this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: "lucide-chevrons-right", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowRight"}], editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
 
+        // [Sidebar]
+        this.addCommand({ id: 'open-task-sidebar', name: '할 일 문서 열기', callback: () => this.sidebar.openTaskInLeftSidebar() });
+        this.addCommand({ id: 'open-later-sidebar', name: '보관 문서 열기', callback: () => this.sidebar.openLaterInRightSidebar() });
+
         // [Snippets]
         this.addCommand({ id: 'add-to-snippets', name: '조각글 추가', icon: 'lucide-clipboard-plus', editorCallback: (editor: Editor) => { this.snippets.addSnippet(editor.getSelection()); } });
         this.addCommand({ id: 'remove-from-snippets', name: '조각글 제거', icon: 'lucide-clipboard-minus', editorCallback: (editor: Editor) => { this.snippets.removeSnippet(editor.getSelection()); } });
@@ -348,9 +346,6 @@ export default class ATOZVER6Plugin extends Plugin {
             callback: () => this.switcher.openTitleSwitcher()
         });
 
-        // [Task]
-        this.addCommand({ id: 'toggle-task-sidebar', name: '할 일 문서 사이드바 토글', callback: () => this.task.openTaskInLeftSidebar() });
-        
         // [Title]
         this.addCommand({
             id: 'convert-filenamelike-to-title',
@@ -358,12 +353,8 @@ export default class ATOZVER6Plugin extends Plugin {
             callback: () => this.titleFeature.convertWikilinks()
         });
 
-        // [Trash]
-        this.addCommand({ id: 'toggle-trash-file-sidebar', name: '휴지통 문서 사이드바 토글', callback: () => this.trash.toggleTrashFileInRightSidebar() });
-
         // [Work]
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => this.work.openWorkFile() });
-        this.addCommand({ id: 'toggle-later-file-sidebar', name: '백업 문서 사이드바 토글', callback: () => this.work.toggleLaterFileInRightSidebar() });
         this.addCommand({ id: 'close-all-tabs', name: '모든 탭 닫기', callback: () => this.work.cleanupTabs() });
         this.addCommand({ id: 'backup-and-clear-work', name: '작업 문서 정리', icon: 'lucide-brush-cleaning', callback: async () => {
             const result = await this.work.readWorkContent();

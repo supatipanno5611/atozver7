@@ -20,7 +20,6 @@ export interface ATOZSettings {
     symbolPairs: Record<string, string>;
     recentSymbols: Record<string, number>;
     taskFilePath: string;
-    trashFilePath: string;
     workFilePath: string;
     laterFilePath: string;
     workTimestampFormat: string;
@@ -94,9 +93,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     
     // Task
     taskFilePath: 'task.md',
-
-    // Trash
-    trashFilePath: 'trash.md',
     
     // Work
     workFilePath: 'work.md',
