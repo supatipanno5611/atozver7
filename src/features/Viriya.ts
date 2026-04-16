@@ -1,7 +1,7 @@
 import type ATOZVER6Plugin from '../main';
 import { Notice, TFile, TFolder } from 'obsidian';
 import { moment } from 'obsidian';
-import { parseDocument, buildDocument, DATE_PATTERN, INTERNAL_LINK_PATTERN, ENGLISH_ONLY_PATTERN, sortBase } from '../utils';
+import { parseDocument, buildDocument, DATE_PATTERN, INTERNAL_LINK_PATTERN, sortBase } from '../utils';
 
 const VIRIYA_MD_PATH = 'viriya/content/pages';
 
@@ -72,7 +72,7 @@ export class Viriya {
         const filtered = base.filter(v => {
             if (typeof v !== 'string') return true;
             if (DATE_PATTERN.test(v)) return false;
-            if (ENGLISH_ONLY_PATTERN.test(v)) return false;
+            if (v.startsWith('.')) return false;
             if (INTERNAL_LINK_PATTERN.test(v)) return false;
             return true;
         });
