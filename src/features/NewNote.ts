@@ -4,7 +4,7 @@ import { App, MarkdownView, Notice, SuggestModal, normalizePath, prepareFuzzySea
 export class NewNoteFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
-    open() {
+    open(initialTitle?: string) {
         const existingNumbers: Record<string, Set<number>> = {};
         for (const file of this.plugin.app.vault.getMarkdownFiles()) {
             const match = file.basename.match(/^(.+)-(\d+)$/);
@@ -20,11 +20,12 @@ export class NewNoteFeature {
             this.plugin.settings.sets,
             this.plugin.settings.recentSets,
             existingNumbers,
-            (filename, set) => this.createNote(filename, set)
+            (filename, set) => this.createNote(filename, set, initialTitle),
+            initialTitle
         ).open();
     }
 
-    private async createNote(filename: string, set: string) {
+    private async createNote(filename: string, set: string, title?: string) {
         try {
             const path = normalizePath(`${filename}.md`);
             const newFile = await this.plugin.app.vault.create(path, '');
@@ -38,6 +39,11 @@ export class NewNoteFeature {
             const view = leaf.view;
             if (view instanceof MarkdownView) {
                 await this.plugin.properties.insertProperties([set]);
+                if (title) {
+                    await this.plugin.app.fileManager.processFrontMatter(newFile, (fm) => {
+                        fm['title'] = title;
+                    });
+                }
             }
 
             if (!this.plugin.baseCandidates.includes(set)) {
@@ -66,20 +72,31 @@ class NewNoteModal extends SuggestModal<string> {
     private recentSets: string[];
     private existingNumbers: Record<string, Set<number>>;
     private onSubmit: (filename: string, set: string) => void;
+    private initialTitle?: string;
 
     constructor(
         app: App,
         sets: string[],
         recentSets: string[],
         existingNumbers: Record<string, Set<number>>,
-        onSubmit: (filename: string, set: string) => void
+        onSubmit: (filename: string, set: string) => void,
+        initialTitle?: string
     ) {
         super(app);
         this.sets = sets;
         this.recentSets = recentSets;
         this.existingNumbers = existingNumbers;
         this.onSubmit = onSubmit;
+        this.initialTitle = initialTitle;
         this.setPlaceholder('set을 선택하세요.');
+    }
+
+    onOpen() {
+        super.onOpen();
+        if (this.initialTitle) {
+            this.inputEl.value = this.initialTitle;
+            this.inputEl.dispatchEvent(new Event('input'));
+        }
     }
 
     getSuggestions(query: string): string[] {

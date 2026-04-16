@@ -19,7 +19,7 @@ import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
-import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN } from './utils';
+import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN, convertHangulToQwerty } from './utils';
 import { Viriya } from './features/Viriya';
 import { TitleFeature, TitleSuggestions } from './features/Title';
 import { NewNoteFeature } from './features/NewNote';
@@ -54,6 +54,7 @@ export default class ATOZVER6Plugin extends Plugin {
     
     baseCandidates: string[] = [];
     titleCandidates: Map<string, string> = new Map();
+    titleCandidatesQwerty: Map<string, string> = new Map();
     allFileCandidates: SwitcherItem[] = [];
 
     // Snippets/Symbols debounced save timer
@@ -195,11 +196,13 @@ export default class ATOZVER6Plugin extends Plugin {
     // --- title 캐시 수집 메서드 ---
     collectTitleCandidates(): Map<string, string> {
         const map = new Map<string, string>();
+        this.titleCandidatesQwerty = new Map();
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
             const title = cache?.frontmatter?.['title'];
             if (typeof title === 'string' && title.trim()) {
                 map.set(title, file.path);
+                this.titleCandidatesQwerty.set(convertHangulToQwerty(title), file.path);
             }
         }
         return map;
@@ -426,11 +429,13 @@ export default class ATOZVER6Plugin extends Plugin {
                     if (path === file.path) {
                         if (title === newTitle) return;
                         this.titleCandidates.delete(title);
+                        this.titleCandidatesQwerty.delete(convertHangulToQwerty(title));
                         break;
                     }
                 }
                 if (typeof newTitle === 'string' && newTitle.trim()) {
                     this.titleCandidates.set(newTitle, file.path);
+                    this.titleCandidatesQwerty.set(convertHangulToQwerty(newTitle), file.path);
                 }
             })
         );
@@ -448,6 +453,7 @@ export default class ATOZVER6Plugin extends Plugin {
                     for (const [title, path] of this.titleCandidates) {
                         if (path === file.path) {
                             this.titleCandidates.delete(title);
+                            this.titleCandidatesQwerty.delete(convertHangulToQwerty(title));
                             break;
                         }
                     }
