@@ -267,6 +267,7 @@ export default class ATOZVER6Plugin extends Plugin {
 
         // [Executes]
         this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', hotkeys: [{ modifiers: ["Mod"], key: "Delete" }], callback: () => this.executes.executeDeleteParagraph() });
+        this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => this.executes.focusRootLeaf() });
 
         // [Graph]
         this.addCommand({ id: 'open-localgraph-in-sidebar', name: '오른쪽 사이드바에 로컬 그래프뷰 열기', callback: () => this.graph.toggleLocalGraphInSidebar() });
