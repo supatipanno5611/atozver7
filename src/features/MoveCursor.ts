@@ -14,7 +14,12 @@ export class MoveCursorFeature {
 
     moveCursorToStart(editor: Editor) {
         editor.focus();
-        const pos: EditorPosition = { line: 0, ch: 0 };
+        const file = this.plugin.app.workspace.getActiveFile();
+        const fmEnd = file
+            ? this.plugin.app.metadataCache.getFileCache(file)?.frontmatterPosition?.end.line
+            : undefined;
+        const startLine = fmEnd !== undefined ? fmEnd + 1 : 0;
+        const pos: EditorPosition = { line: startLine, ch: 0 };
         editor.setCursor(pos);
         editor.scrollIntoView({ from: pos, to: pos }, true);
     }

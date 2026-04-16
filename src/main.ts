@@ -150,6 +150,12 @@ export default class ATOZVER6Plugin extends Plugin {
     async loadSettings() {
         const loadedData = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
+    
+        // sets 마이그레이션: Record -> string[]
+        if (!Array.isArray(this.settings.sets)) {
+            this.settings.sets = Object.keys(this.settings.sets as unknown as Record<string, number>);
+            await this.saveSettings();
+        }
     }
 
     async saveSettings() {
@@ -296,13 +302,6 @@ export default class ATOZVER6Plugin extends Plugin {
             name: '새 노트 생성',
             icon: 'lucide-file-plus',
             callback: () => this.newNote.open()
-        });
-
-        this.addCommand({
-            id: 'sync-sets',
-            name: 'set 목록 동기화',
-            icon: 'lucide-refresh-cw',
-            callback: () => this.newNote.syncSets()
         });
 
         // [Ordinary]

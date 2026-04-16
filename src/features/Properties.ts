@@ -19,13 +19,21 @@ export class PropertiesFeature {
         const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base']);
         const requiredKeys = Object.keys(this.plugin.settings.userproperties);
         const files = this.plugin.app.vault.getMarkdownFiles();
+
+        const excluded = new Set([
+            'log.md',
+            this.plugin.settings.workFilePath,
+            this.plugin.settings.laterFilePath,
+            this.plugin.settings.taskFilePath,
+            this.plugin.settings.ordinaryFilePath,
+        ]);
     
         let cleanedCount = 0;
         let reviewCount = 0;
         const missingKeyFiles: string[] = [];
     
         for (const file of files) {
-            if (file.path === 'log.md') continue;
+            if (excluded.has(file.path)) continue;
     
             const toReview: string[] = [];
     
