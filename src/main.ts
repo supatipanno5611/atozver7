@@ -6,7 +6,6 @@ import { ATOZSettings, DEFAULT_SETTINGS, SwitcherItem } from './types';
 import { SelectionFeature } from './features/Selection';
 import { MoveCursorFeature } from './features/MoveCursor';
 import { ExecutesFeature } from './features/Executes';
-import { GraphFeature } from './features/Graph';
 import { CertainMdFeature } from './features/CertainMd';
 import { CursorCenterFeature } from './features/CursorCenter';
 import { HeadingNavigaterFeature } from './features/HeadingNavigater';
@@ -32,7 +31,6 @@ export default class ATOZVER6Plugin extends Plugin {
     selection: SelectionFeature;
     moveCursor: MoveCursorFeature;
     executes: ExecutesFeature;
-    graph: GraphFeature;
     certainMd: CertainMdFeature;
     cursorCenter: CursorCenterFeature;
     headingNavigater: HeadingNavigaterFeature;
@@ -66,7 +64,6 @@ export default class ATOZVER6Plugin extends Plugin {
         this.selection = new SelectionFeature(this);
         this.moveCursor = new MoveCursorFeature(this);
         this.executes = new ExecutesFeature(this);
-        this.graph = new GraphFeature(this);
         this.certainMd = new CertainMdFeature(this);
         this.cursorCenter = new CursorCenterFeature(this);
         this.headingNavigater = new HeadingNavigaterFeature(this);
@@ -227,8 +224,8 @@ export default class ATOZVER6Plugin extends Plugin {
     registerRibbonIcon() {
 
     	// [Graph]
-        this.addRibbonIcon("lucide-git-branch", "오른쪽 사이드바에 로컬 그래프뷰 열기", () => this.graph.toggleLocalGraphInSidebar());
-        this.addRibbonIcon("lucide-git-fork", "오른쪽 사이드바에 그래프뷰 열기", () => this.graph.toggleGlobalGraphInSidebar());
+        this.addRibbonIcon("lucide-git-branch", "오른쪽 사이드바에 로컬 그래프뷰 열기", () => this.sidebar.toggleLocalGraphInSidebar());
+        this.addRibbonIcon("lucide-git-fork", "오른쪽 사이드바에 그래프뷰 열기", () => this.sidebar.toggleGlobalGraphInSidebar());
 
         // [Ordinary]
         this.addRibbonIcon('calendar', '일상노트 열기', () => this.ordinary.openFileOrdinary());
@@ -269,10 +266,6 @@ export default class ATOZVER6Plugin extends Plugin {
         // [Executes]
         this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', hotkeys: [{ modifiers: ["Mod"], key: "Delete" }], callback: () => this.executes.executeDeleteParagraph() });
         this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => this.executes.focusRootLeaf() });
-
-        // [Graph]
-        this.addCommand({ id: 'open-localgraph-in-sidebar', name: '오른쪽 사이드바에 로컬 그래프뷰 열기', callback: () => this.graph.toggleLocalGraphInSidebar() });
-        this.addCommand({ id: 'open-graph-in-sidebar', name: '오른쪽 사이드바에 그래프뷰 열기', callback: () => this.graph.toggleGlobalGraphInSidebar() });
 
         // [Heading Navigater]
         // 1. 이전 헤딩으로 이동 명령 등록
@@ -340,6 +333,9 @@ export default class ATOZVER6Plugin extends Plugin {
         // [Sidebar]
         this.addCommand({ id: 'open-task-sidebar', name: '할 일 문서 열기', callback: () => this.sidebar.openTaskInLeftSidebar() });
         this.addCommand({ id: 'open-later-sidebar', name: '보관 문서 열기', callback: () => this.sidebar.openLaterInRightSidebar() });
+
+        this.addCommand({ id: 'open-localgraph-in-sidebar', name: '오른쪽 사이드바에 로컬 그래프뷰 열기', callback: () => this.sidebar.toggleLocalGraphInSidebar() });
+        this.addCommand({ id: 'open-graph-in-sidebar', name: '오른쪽 사이드바에 그래프뷰 열기', callback: () => this.sidebar.toggleGlobalGraphInSidebar() });
 
         // [Snippets]
         this.addCommand({ id: 'add-to-snippets', name: '조각글 추가', icon: 'lucide-clipboard-plus', editorCallback: (editor: Editor) => { this.snippets.addSnippet(editor.getSelection()); } });
