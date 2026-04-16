@@ -12,42 +12,6 @@ export class SidebarFeature {
         await this.toggleSidebar(this.plugin.settings.laterFilePath, 'right');
     }
 
-    handleSidebarLinkClick(evt: MouseEvent): void {
-        const target = evt.target as HTMLElement;
-        if (!target.classList.contains('internal-link')) return;
-
-        const isSidebarClick = target.closest('.workspace-split.mod-left-split') ||
-                               target.closest('.workspace-split.mod-right-split');
-        if (!isSidebarClick) return;
-
-        evt.preventDefault();
-        evt.stopPropagation();
-
-        const href = target.getAttribute('data-href');
-        if (!href) return;
-
-        const file = this.plugin.app.metadataCache.getFirstLinkpathDest(href, '');
-        if (!file) return;
-
-        const { workspace } = this.plugin.app;
-        let existingLeaf: WorkspaceLeaf | null = null as WorkspaceLeaf | null;
-
-        workspace.iterateRootLeaves((leaf) => {
-            if (!existingLeaf && leaf.view instanceof FileView && leaf.view.file?.path === file.path) {
-                existingLeaf = leaf;
-            }
-        });
-
-        if (existingLeaf) {
-            workspace.setActiveLeaf(existingLeaf, { focus: true });
-            if (existingLeaf.view instanceof MarkdownView) {
-                existingLeaf.view.editor.focus();
-            }
-        } else {
-            workspace.getLeaf('tab').openFile(file);
-        }
-    }
-
     private async toggleSidebar(path: string, side: 'left' | 'right') {
         const { workspace, vault } = this.plugin.app;
 

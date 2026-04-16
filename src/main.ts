@@ -421,11 +421,6 @@ export default class ATOZVER6Plugin extends Plugin {
             })
         );
 
-        // [Sidebar]
-        this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-            this.sidebar.handleSidebarLinkClick(evt);
-        }, true);
-
         // [Switcher] 캐시 동기화
         this.registerEvent(
             this.app.metadataCache.on('changed', (file) => {
