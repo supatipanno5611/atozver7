@@ -74,23 +74,19 @@ export class WorkFeature {
     async backupAndClear(workFile: TFile, content: string): Promise<boolean> {
         const { vault } = this.plugin.app;
         const laterPath = this.plugin.settings.laterFilePath;
-
+    
         try {
-            // 백업 파일 존재 여부 확인 — 없으면 데이터 유실 방지를 위해 중단
             const laterFile = vault.getAbstractFileByPath(laterPath);
             if (!(laterFile instanceof TFile)) {
                 new Notice(`백업 파일(${laterPath})이 존재하지 않습니다. 작업이 중단되고 내용이 유지됩니다.`);
                 return false;
             }
-
-            // 백업 내용 포맷팅 후 later.md에 추가
+    
             const timestamp = moment().format(this.plugin.settings.workTimestampFormat);
-            await vault.append(laterFile, `\n\n${timestamp}\n${content}`);
-
-            // 백업 완료 후 work.md 비우기
-            await vault.modify(workFile, '');
+            await vault.process(laterFile, (data) => data + `\n\n${timestamp}\n${content}`);
+            await vault.process(workFile, () => '');
             return true;
-
+    
         } catch (error) {
             console.error(error);
             new Notice('파일 처리 중 오류가 발생했습니다.');

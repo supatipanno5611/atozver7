@@ -370,8 +370,12 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({
             id: 'add-file-to-viriya',
             name: '현재 파일을 viriya에 추가',
-            icon: 'lucide-file-up',
             callback: () => this.viriya.addActiveFileToViriya()
+        });
+        this.addCommand({
+            id: 'remove-file-from-viriya',
+            name: '현재 파일을 viriya에서 내리기',
+            callback: () => this.viriya.removeActiveFileFromViriya()
         });
     }
 
