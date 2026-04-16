@@ -1,6 +1,5 @@
 import type ATOZVER6Plugin from '../main';
 import { MarkdownView, Notice, TFile, WorkspaceLeaf, moment } from 'obsidian';
-import { pickMostRecentLeaf } from '../utils';
 
 export class WorkFeature {
     private isWorkLaterToggling = false;
@@ -140,32 +139,5 @@ export class WorkFeature {
         } catch (error) {
             new Notice('작업 문서를 여는 중 오류가 발생했습니다.');
         }
-    }
-    
-    async focusMainEditor() {
-        const { workspace } = this.plugin.app;
-    
-        const activeLeaf = workspace.getMostRecentLeaf();
-        const isMainArea = activeLeaf?.view.containerEl.closest('.mod-root') !== null;
-    
-        if (isMainArea) {
-            this.plugin.cycleTab.cycleAllTabs(true);
-            return;
-        }
-    
-        const leaves: WorkspaceLeaf[] = [];
-        workspace.iterateRootLeaves((leaf) => {
-            if (leaf.view instanceof MarkdownView && leaf.view.file) leaves.push(leaf);
-        });
-    
-        const leaf = pickMostRecentLeaf(leaves, this.plugin.app);
-    
-        if (!leaf) {
-            await this.openWorkFile();
-            return;
-        }
-    
-        workspace.setActiveLeaf(leaf, { focus: true });
-        if (leaf.view instanceof MarkdownView) leaf.view.editor.focus();
     }
 }

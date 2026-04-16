@@ -361,7 +361,6 @@ export default class ATOZVER6Plugin extends Plugin {
                 await this.work.backupAndClear(result.file, result.content);
             }
         }});
-        this.addCommand({ id: 'focus-main-editor', name: '메인 에디터로 포커스 이동', callback: () => this.work.focusMainEditor() });
 
         // [Viriya]
         this.addCommand({

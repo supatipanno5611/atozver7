@@ -18,6 +18,7 @@ export class NewNoteFeature {
         new NewNoteModal(
             this.plugin.app,
             this.plugin.settings.sets,
+            this.plugin.settings.recentSets,
             existingNumbers,
             (filename, set) => this.createNote(filename, set)
         ).open();
@@ -44,8 +45,15 @@ export class NewNoteFeature {
             }
             if (!this.plugin.settings.sets.includes(set)) {
                 this.plugin.settings.sets.push(set);
-                await this.plugin.saveSettings();
             }
+
+            // recentSets 업데이트: 앞에 추가, 중복 제거, 3개로 자르기
+            this.plugin.settings.recentSets = [
+                set,
+                ...this.plugin.settings.recentSets.filter(s => s !== set)
+            ].slice(0, 3);
+
+            await this.plugin.saveSettings();
 
         } catch (error) {
             new Notice('새 노트 생성 중 오류가 발생했습니다.');
@@ -55,17 +63,20 @@ export class NewNoteFeature {
 
 class NewNoteModal extends SuggestModal<string> {
     private sets: string[];
+    private recentSets: string[];
     private existingNumbers: Record<string, Set<number>>;
     private onSubmit: (filename: string, set: string) => void;
 
     constructor(
         app: App,
         sets: string[],
+        recentSets: string[],
         existingNumbers: Record<string, Set<number>>,
         onSubmit: (filename: string, set: string) => void
     ) {
         super(app);
         this.sets = sets;
+        this.recentSets = recentSets;
         this.existingNumbers = existingNumbers;
         this.onSubmit = onSubmit;
         this.setPlaceholder('set을 선택하세요.');
@@ -75,13 +86,23 @@ class NewNoteModal extends SuggestModal<string> {
         const trimmed = query.trim();
 
         if (!trimmed) {
+            return this.recentSets
+                .filter(s => this.sets.includes(s))
+                .map(set => this.toCandidate(set));
+        }
+
+        if (trimmed === '.') {
+            return this.sets.map(set => this.toCandidate(set));
+        }
+
+        if (!trimmed.startsWith('.')) {
             return [];
         }
 
         const fuzzy = prepareFuzzySearch(trimmed.toLowerCase());
         const matched = this.sets.filter(s => fuzzy(s.toLowerCase()));
 
-        const newItem = trimmed.startsWith('.') && !this.sets.includes(trimmed)
+        const newItem = !this.sets.includes(trimmed)
             ? `+ '${trimmed}' 새 set`
             : null;
 

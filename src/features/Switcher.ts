@@ -1,5 +1,5 @@
 import type ATOZVER6Plugin from '../main';
-import { App, SuggestModal, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, SuggestModal, TFile, WorkspaceLeaf, MarkdownView } from 'obsidian';
 import { SwitcherItem } from '../types';
 
 const FILE_SEARCH_PREFIX = '-';
@@ -55,33 +55,31 @@ class TitleSwitcherModal extends SuggestModal<SwitcherItem> {
 
     async onChooseSuggestion(item: SwitcherItem) {
         const { workspace, vault } = this.app;
-
+    
         let existingLeaf: WorkspaceLeaf | null = null;
         workspace.iterateRootLeaves((leaf) => {
             if (!existingLeaf && (leaf.view as any).file?.path === item.path) {
                 existingLeaf = leaf;
             }
         });
-
+    
         if (existingLeaf) {
-            workspace.setActiveLeaf(existingLeaf, { focus: true });
+            const leaf = existingLeaf as WorkspaceLeaf;
+            workspace.setActiveLeaf(leaf, { focus: true });
+            const view = leaf.view;
+            if (view instanceof MarkdownView) view.editor.focus();
             this.recordRecent(item.path);
             return;
         }
-
+    
         const file = vault.getAbstractFileByPath(item.path);
         if (!(file instanceof TFile)) {
             workspace.openLinkText(item.path, '');
             this.recordRecent(item.path);
             return;
         }
-
-        let leaf = workspace.getLeaf(false);
-        const isMainArea = leaf.view.containerEl.closest('.mod-root') !== null;
-        if (!isMainArea) {
-            leaf = workspace.getLeaf('tab');
-        }
-
+    
+        const leaf = workspace.getLeaf('tab');
         await leaf.openFile(file);
         this.recordRecent(item.path);
     }
