@@ -351,7 +351,7 @@ export default class ATOZVER6Plugin extends Plugin {
         // [Title]
         this.addCommand({
             id: 'convert-filenamelike-to-title',
-            name: '내부링크를 title 별칭으로 변환',
+            name: '보관소 전체 내부 링크 별칭 최신화',
             callback: () => this.titleFeature.convertWikilinks()
         });
 

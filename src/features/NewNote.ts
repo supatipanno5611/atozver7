@@ -21,7 +21,6 @@ export class NewNoteFeature {
             this.plugin.settings.recentSets,
             existingNumbers,
             (filename, set) => this.createNote(filename, set, initialTitle),
-            initialTitle
         ).open();
     }
 
@@ -53,7 +52,6 @@ export class NewNoteFeature {
                 this.plugin.settings.sets.push(set);
             }
 
-            // recentSets 업데이트: 앞에 추가, 중복 제거, 3개로 자르기
             this.plugin.settings.recentSets = [
                 set,
                 ...this.plugin.settings.recentSets.filter(s => s !== set)
@@ -72,7 +70,6 @@ class NewNoteModal extends SuggestModal<string> {
     private recentSets: string[];
     private existingNumbers: Record<string, Set<number>>;
     private onSubmit: (filename: string, set: string) => void;
-    private initialTitle?: string;
 
     constructor(
         app: App,
@@ -80,23 +77,13 @@ class NewNoteModal extends SuggestModal<string> {
         recentSets: string[],
         existingNumbers: Record<string, Set<number>>,
         onSubmit: (filename: string, set: string) => void,
-        initialTitle?: string
     ) {
         super(app);
         this.sets = sets;
         this.recentSets = recentSets;
         this.existingNumbers = existingNumbers;
         this.onSubmit = onSubmit;
-        this.initialTitle = initialTitle;
         this.setPlaceholder('set을 선택하세요.');
-    }
-
-    onOpen() {
-        super.onOpen();
-        if (this.initialTitle) {
-            this.inputEl.value = this.initialTitle;
-            this.inputEl.dispatchEvent(new Event('input'));
-        }
     }
 
     getSuggestions(query: string): string[] {
@@ -108,18 +95,16 @@ class NewNoteModal extends SuggestModal<string> {
                 .map(set => this.toCandidate(set));
         }
 
-        if (trimmed === '.') {
-            return this.sets.map(set => this.toCandidate(set));
-        }
-
-        if (!trimmed.startsWith('.')) {
-            return [];
-        }
-
         const fuzzy = prepareFuzzySearch(trimmed.toLowerCase());
-        const matched = this.sets.filter(s => fuzzy(s.toLowerCase()));
+        const matched = this.sets.filter(s => {
+            const name = s.startsWith('.') ? s.slice(1) : s;
+            return fuzzy(name.toLowerCase());
+        });
 
-        const newItem = !this.sets.includes(trimmed)
+        const newItem = !this.sets.some(s => {
+            const name = s.startsWith('.') ? s.slice(1) : s;
+            return name === trimmed;
+        })
             ? `+ '${trimmed}' 새 set`
             : null;
 
@@ -146,13 +131,12 @@ class NewNoteModal extends SuggestModal<string> {
         if (value.startsWith("+ '")) {
             const trimmed = this.inputEl.value.trim();
             const name = trimmed.startsWith('.') ? trimmed.slice(1) : trimmed;
-            this.onSubmit(`${name}-1`, trimmed);
+            this.onSubmit(`${name}-1`, `.${name}`);
             return;
         }
         const match = value.match(/^(.+)-(\d+)$/);
         if (!match) return;
         const name = match[1] ?? value;
-        const set = '.' + name;
-        this.onSubmit(value, set);
+        this.onSubmit(value, `.${name}`);
     }
 }

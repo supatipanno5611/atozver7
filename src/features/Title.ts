@@ -22,7 +22,8 @@ export class TitleFeature {
 
     private replaceLinksInString(text: string, fileToTitle: Map<string, string>): { newStr: string; count: number } {
         let count = 0;
-        const newStr = text.replace(/\[\[([^\]|#^]+)((?:#[^\]|^]*)|(?:\^[^\]|]*))?\]\]/g, (match, name, frag) => {
+        // alias 있는 링크([[name|alias]])와 없는 링크([[name]]) 모두 매칭
+        const newStr = text.replace(/\[\[([^\]|#^]+)((?:#[^\]|^]*)|(?:\^[^\]|]*))?(?:\|[^\]]*)?\]\]/g, (match, name, frag) => {
             const title = fileToTitle.get(name.trim());
             if (!title) return match;
             count++;
@@ -52,7 +53,6 @@ export class TitleFeature {
             let bodyChanged = false;
 
             for (const linkCache of sortedLinks) {
-                if (linkCache.original.includes('|')) continue;
                 const baseFileName = linkCache.link.split(/[#^]/)[0]?.trim() ?? '';
                 const targetTitle = fileToTitle.get(baseFileName);
                 if (!targetTitle) continue;
