@@ -1,5 +1,6 @@
 import type ATOZVER6Plugin from '../main';
 import { FileView, MarkdownView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
+import { pickMostRecentLeaf } from '../utils';
 
 export class SidebarFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -28,6 +29,19 @@ export class SidebarFeature {
 
         if (!(split as any).collapsed) {
             split.collapse();
+
+            const rootLeaves: WorkspaceLeaf[] = [];
+            workspace.iterateRootLeaves((leaf) => {
+                if (leaf.view instanceof MarkdownView && leaf.view.file) rootLeaves.push(leaf);
+            });
+
+            const target = pickMostRecentLeaf(rootLeaves, this.plugin.app);
+            if (target) {
+                workspace.setActiveLeaf(target, { focus: true });
+                (target.view as MarkdownView).editor.focus();
+            } else {
+                await this.plugin.work.openWorkFile();
+            }
             return;
         }
 
