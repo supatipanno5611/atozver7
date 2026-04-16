@@ -149,13 +149,13 @@ export class WorkFeature {
         const isMainArea = activeLeaf?.view.containerEl.closest('.mod-root') !== null;
     
         if (isMainArea) {
-        	this.plugin.cycleTab.cycleAllTabs(true);
+            this.plugin.cycleTab.cycleAllTabs(true);
             return;
         }
     
         const leaves: WorkspaceLeaf[] = [];
         workspace.iterateRootLeaves((leaf) => {
-            leaves.push(leaf);
+            if (leaf.view instanceof MarkdownView && leaf.view.file) leaves.push(leaf);
         });
     
         const leaf = pickMostRecentLeaf(leaves, this.plugin.app);
