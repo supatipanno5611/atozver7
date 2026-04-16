@@ -38,35 +38,17 @@ export class SidebarFeature {
             return;
         }
 
-        const matchingLeaves: WorkspaceLeaf[] = [];
+        // 사이드바의 markdown 탭 전부 닫기
+        const toClose: WorkspaceLeaf[] = [];
         workspace.iterateAllLeaves((leaf) => {
-            const view = leaf.view as FileView;
-            if (
-                leaf.getRoot() === split &&
-                leaf.view.getViewType() === 'markdown' &&
-                view.file?.path === path
-            ) {
-                matchingLeaves.push(leaf);
+            if (leaf.getRoot() === split && leaf.view.getViewType() === 'markdown') {
+                toClose.push(leaf);
             }
         });
+        toClose.forEach(l => l.detach());
 
-        if (matchingLeaves.length > 0) {
-            const first = matchingLeaves[0] as WorkspaceLeaf;
-            const duplicates = matchingLeaves.slice(1);
-            if (duplicates.length > 0) {
-                duplicates.forEach(l => l.detach());
-            }
-            workspace.revealLeaf(first);
-            workspace.setActiveLeaf(first, { focus: true });
-            if (first.view instanceof MarkdownView) first.view.editor.focus();
-            return;
-        }
-
-        let leaf: WorkspaceLeaf | null | undefined = workspace.getLeavesOfType('empty').find(l => l.getRoot() === split);
-        if (!leaf) {
-            leaf = side === 'left' ? workspace.getLeftLeaf(true) : workspace.getRightLeaf(true);
-        }
-
+        // 새 탭에 파일 열기
+        const leaf = side === 'left' ? workspace.getLeftLeaf(true) : workspace.getRightLeaf(true);
         if (!leaf) {
             new Notice(`${side === 'left' ? '왼쪽' : '오른쪽'} 사이드바에 새 탭을 열 수 없습니다.`);
             return;
