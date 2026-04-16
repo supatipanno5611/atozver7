@@ -113,7 +113,7 @@ export class MobileFeature {
     install(callbacks: MobileCallbacks): void {
         if (Platform.isMobileApp) {
             if (window.screen.width >= 800) {
-                document.body.classList.add('mobile-toolbar-off', 'tablet-narrow-frontmatter');
+                document.body.classList.add('mobile-toolbar-off');
             } else {
                 document.body.classList.add('notice-bottom', 'hide-viriya-folder');
             }
@@ -124,7 +124,7 @@ export class MobileFeature {
     }
 
     uninstall(): void {
-    	document.body.classList.remove('mobile-toolbar-off', 'tablet-narrow-frontmatter', 'notice-bottom', 'hide-viriya-folder');
+    	document.body.classList.remove('mobile-toolbar-off', 'notice-bottom', 'hide-viriya-folder');
         this.mobileLauncher.uninstall();
         this.emptyTabMonitor.uninstall();
     }
