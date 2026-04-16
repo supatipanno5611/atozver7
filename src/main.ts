@@ -20,7 +20,7 @@ import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { URL_PATTERN, INTERNAL_LINK_PATTERN, DATE_PATTERN, convertHangulToQwerty } from './utils';
-import { Viriya } from './features/Viriya';
+import { Project } from './features/Project';
 import { TitleFeature, TitleSuggestions } from './features/Title';
 import { NewNoteFeature } from './features/NewNote';
 import { SwitcherFeature } from './features/Switcher';
@@ -45,7 +45,7 @@ export default class ATOZVER6Plugin extends Plugin {
     symbols: SymbolsFeature;
     work: WorkFeature;
     cutCreateNewMd: CutCreateNewMdFeature;
-    viriya: Viriya;
+    project: Project;
     titleFeature: TitleFeature;
     newNote: NewNoteFeature;
     switcher: SwitcherFeature;
@@ -79,7 +79,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
-        this.viriya = new Viriya(this);
+        this.project = new Project(this);
         this.newNote = new NewNoteFeature(this);
         this.switcher = new SwitcherFeature(this);
         this.mobile = new MobileFeature(this);
@@ -210,10 +210,12 @@ export default class ATOZVER6Plugin extends Plugin {
 
     // --- switcher 캐시 수집 메서드 ---
     collectAllFileCandidates(): SwitcherItem[] {
+        const { projectPath } = this.settings;
         return this.app.vault.getFiles()
             .filter(f => {
-                if (!f.path.startsWith('viriya/')) return true;
-                return f.path.startsWith('viriya/content/') || f.path.startsWith('viriya/public/');
+                if (!projectPath) return true;
+                if (!f.path.startsWith(projectPath + '/')) return true;
+                return f.path.startsWith(projectPath + '/content/') || f.path.startsWith(projectPath + '/public/');
             })
             .map(f => ({ display: f.name, path: f.path }));
     }
@@ -311,6 +313,10 @@ export default class ATOZVER6Plugin extends Plugin {
         // [Ordinary]
         this.addCommand({ id: 'open-ordinary-file', name: '일상노트 열기', callback: () => this.ordinary.openFileOrdinary() });
 
+        // [Project]
+        this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => this.project.addActiveFileToProject() });
+        this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 내리기', callback: () => this.project.removeActiveFileFromProject() });
+
         // [Properties]
         this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", callback: () => this.properties.insertProperties() });
         this.addCommand({ id: "lint-properties", name: "속성 정리", icon: "lucide-list-x", callback: () => this.properties.lintProperties() });
@@ -365,18 +371,6 @@ export default class ATOZVER6Plugin extends Plugin {
                 await this.work.backupAndClear(result.file, result.content);
             }
         }});
-
-        // [Viriya]
-        this.addCommand({
-            id: 'add-file-to-viriya',
-            name: '현재 파일을 viriya에 추가',
-            callback: () => this.viriya.addActiveFileToViriya()
-        });
-        this.addCommand({
-            id: 'remove-file-from-viriya',
-            name: '현재 파일을 viriya에서 내리기',
-            callback: () => this.viriya.removeActiveFileFromViriya()
-        });
     }
 
     registerEvents() {

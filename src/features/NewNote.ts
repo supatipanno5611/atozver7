@@ -20,11 +20,12 @@ export class NewNoteFeature {
             this.plugin.settings.sets,
             this.plugin.settings.recentSets,
             existingNumbers,
-            (filename, set) => this.createNote(filename, set, initialTitle),
+            this.plugin.settings.usedMaxNumbers,
+            (filename, set, n) => this.createNote(filename, set, n, initialTitle),
         ).open();
     }
 
-    private async createNote(filename: string, set: string, title?: string) {
+    private async createNote(filename: string, set: string, n: number, title?: string) {
         try {
             const path = normalizePath(`${filename}.md`);
             const newFile = await this.plugin.app.vault.create(path, '');
@@ -57,6 +58,11 @@ export class NewNoteFeature {
                 ...this.plugin.settings.recentSets.filter(s => s !== set)
             ].slice(0, 3);
 
+            const current = this.plugin.settings.usedMaxNumbers[set] ?? 0;
+            if (n > current) {
+                this.plugin.settings.usedMaxNumbers[set] = n;
+            }
+
             await this.plugin.saveSettings();
 
         } catch (error) {
@@ -69,19 +75,22 @@ class NewNoteModal extends SuggestModal<string> {
     private sets: string[];
     private recentSets: string[];
     private existingNumbers: Record<string, Set<number>>;
-    private onSubmit: (filename: string, set: string) => void;
+    private usedMaxNumbers: Record<string, number>;
+    private onSubmit: (filename: string, set: string, n: number) => void;
 
     constructor(
         app: App,
         sets: string[],
         recentSets: string[],
         existingNumbers: Record<string, Set<number>>,
-        onSubmit: (filename: string, set: string) => void,
+        usedMaxNumbers: Record<string, number>,
+        onSubmit: (filename: string, set: string, n: number) => void,
     ) {
         super(app);
         this.sets = sets;
         this.recentSets = recentSets;
         this.existingNumbers = existingNumbers;
+        this.usedMaxNumbers = usedMaxNumbers;
         this.onSubmit = onSubmit;
         this.setPlaceholder('set을 선택하세요.');
     }
@@ -118,8 +127,9 @@ class NewNoteModal extends SuggestModal<string> {
     private toCandidate(set: string): string {
         const name = set.startsWith('.') ? set.slice(1) : set;
         const existing = this.existingNumbers[set] ?? new Set();
-        let n = 1;
-        while (existing.has(n)) n++;
+        const vaultMax = existing.size > 0 ? Math.max(...existing) : 0;
+        const recordedMax = this.usedMaxNumbers[set] ?? 0;
+        const n = Math.max(vaultMax, recordedMax) + 1;
         return `${name}-${n}`;
     }
 
@@ -131,12 +141,13 @@ class NewNoteModal extends SuggestModal<string> {
         if (value.startsWith("+ '")) {
             const trimmed = this.inputEl.value.trim();
             const name = trimmed.startsWith('.') ? trimmed.slice(1) : trimmed;
-            this.onSubmit(`${name}-1`, `.${name}`);
+            this.onSubmit(`${name}-1`, `.${name}`, 1);
             return;
         }
         const match = value.match(/^(.+)-(\d+)$/);
         if (!match) return;
+        const n = parseInt(match[2] ?? '1', 10);
         const name = match[1] ?? value;
-        this.onSubmit(value, `.${name}`);
+        this.onSubmit(value, `.${name}`, n);
     }
 }

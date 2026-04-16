@@ -5,6 +5,9 @@ export interface ATOZSettings {
     recentSets: string[];
     ordinaryFilePath: string;
     userproperties: Record<string, string>;
+    projectName: string;
+    projectPath: string;
+    usedMaxNumbers: Record<string, number>;
     saveMdMaxRepeat: number;
     saveMdAutoSaveTrigger: number;
     saveMdAutoSaveTarget: string;
@@ -54,7 +57,12 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     userproperties: {
         "title": "[]"
     },
-    
+
+    // Project
+    projectName: '',
+    projectPath: '',
+    usedMaxNumbers: {},
+        
     // SaveMD
     saveMdMaxRepeat: 150,
     saveMdAutoSaveTrigger: 500,
@@ -106,4 +114,5 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     workFilePath: 'work.md',
     laterFilePath: 'later.md',
     workTimestampFormat: 'MM/DD HH:mm:ss'
+
 };
