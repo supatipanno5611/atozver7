@@ -6,7 +6,7 @@ import { convertHangulToQwerty } from '../utils';
 const SWITCHER_RECENT_WEIGHT = 0.0000001;
 const SWITCHER_HISTORY_LIMIT = 16;
 
-type ModalItem = SwitcherItem & { isNewNote?: boolean };
+type ModalItem = SwitcherItem & { isNewNote?: boolean; isFileMode?: boolean };
 
 class TitleSwitcherModal extends SuggestModal<ModalItem> {
     private plugin: ATOZVER6Plugin;
@@ -27,7 +27,7 @@ class TitleSwitcherModal extends SuggestModal<ModalItem> {
             return candidates
                 .map(c => ({ item: c, score: this.plugin.settings.recentSwitcher[c.path] ?? 0 }))
                 .sort((a, b) => b.score - a.score)
-                .map(r => r.item);
+                .map(r => ({ ...r.item, ...(isFileMode && { isFileMode: true }) }));
         }
 
         if (isFileMode) {
@@ -40,7 +40,7 @@ class TitleSwitcherModal extends SuggestModal<ModalItem> {
                     return [{ ...c, _score: result.score + (this.plugin.settings.recentSwitcher[c.path] ?? 0) * SWITCHER_RECENT_WEIGHT }];
                 })
                 .sort((a, b) => b._score - a._score)
-                .map(({ _score: _, ...c }) => c);
+                .map(({ _score: _, ...c }) => ({ ...c, isFileMode: true }));
         }
 
         // 타이틀 모드: 원본 쿼리와 QWERTY 변환 쿼리 둘 다 검색
@@ -75,7 +75,11 @@ class TitleSwitcherModal extends SuggestModal<ModalItem> {
     }
 
     renderSuggestion(item: ModalItem, el: HTMLElement) {
-        el.setText(item.display);
+        el.createEl('span', { text: item.display });
+        if (item.isFileMode && item.path.includes('/')) {
+            const folder = item.path.substring(0, item.path.lastIndexOf('/'));
+            el.createEl('span', { text: folder, cls: 'suggestion-note' });
+        }
     }
 
     async onChooseSuggestion(item: ModalItem) {
