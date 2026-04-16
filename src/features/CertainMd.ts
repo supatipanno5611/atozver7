@@ -34,11 +34,9 @@ export class CertainMdFeature {
             // 이미 열려 있다면 해당 탭으로 포커스
             this.plugin.app.workspace.setActiveLeaf(targetLeaf, { focus: true });
         } else {
-            // 어디에도 열려있지 않다면 현재 탭에 열기
-            const activeLeaf = this.plugin.app.workspace.getLeaf(false);
-            if (activeLeaf) {
-                await activeLeaf.openFile(file);
-            }
+        	// 어디에도 열려있지 않다면 새 탭에 열기
+            const newLeaf = this.plugin.app.workspace.getLeaf('tab');
+            await newLeaf.openFile(file);
         }
     }
 }

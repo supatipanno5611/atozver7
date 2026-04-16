@@ -225,9 +225,8 @@ export default class ATOZVER6Plugin extends Plugin {
     // =========================================================================
 
     registerRibbonIcon() {
-    	// [CertainMd]
-    	this.addRibbonIcon("lucide-code", "특정 마크다운 파일 열기", () => this.certainMd.openCertainMdFile())
-        // [Graph]
+
+    	// [Graph]
         this.addRibbonIcon("lucide-git-branch", "오른쪽 사이드바에 로컬 그래프뷰 열기", () => this.graph.toggleLocalGraphInSidebar());
         this.addRibbonIcon("lucide-git-fork", "오른쪽 사이드바에 그래프뷰 열기", () => this.graph.toggleGlobalGraphInSidebar());
 
