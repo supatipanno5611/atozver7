@@ -34,11 +34,15 @@ export class Project {
     }
 
     // 사본의 날짜 항목 추출 (재업로드 여부 확인용)
-    private getCopiedBaseDates(copiedFile: TFile): string[] {
+    private getCopiedUploadTime(copiedFile: TFile): string {
         const cache = this.plugin.app.metadataCache.getFileCache(copiedFile);
+        const uploadtime = cache?.frontmatter?.['uploadtime'];
+        if (typeof uploadtime === 'string') return uploadtime;
+    
+        // 폴백: uploadtime 없는 기존 사본은 base 날짜로
         const base = cache?.frontmatter?.['base'];
-        if (!Array.isArray(base)) return [];
-        return base.filter((v): v is string => typeof v === 'string' && DATE_PATTERN.test(v));
+        if (!Array.isArray(base)) return '';
+        return base.filter((v): v is string => typeof v === 'string' && DATE_PATTERN.test(v)).join(' ');
     }
 
     async addActiveFileToProject(): Promise<void> {
@@ -59,7 +63,7 @@ export class Project {
         const copiedPath = this.getCopiedFilePath(activeFile.name, proj.name, proj.path);
         const existingCopy = this.plugin.app.vault.getAbstractFileByPath(copiedPath);
         const isReupload = existingCopy instanceof TFile;
-        const existingDates = isReupload ? this.getCopiedBaseDates(existingCopy) : [];
+        const existingDates = isReupload ? this.getCopiedUploadTime(existingCopy) : '';
     
         const bodyLinks = this.getBodyLinks(activeFile);
         const title = frontmatter['title'] ?? '';
@@ -107,7 +111,7 @@ export class Project {
     
         const cache = this.plugin.app.metadataCache.getFileCache(activeFile);
         const title = cache?.frontmatter?.['title'] ?? '';
-        const existingDates = this.getCopiedBaseDates(existingCopy);
+        const existingDates = this.getCopiedUploadTime(existingCopy);
     
         const bodyLinks = this.getBodyLinks(activeFile);
         const uploadedLinks = bodyLinks.filter(f => {
@@ -190,11 +194,11 @@ export class Project {
         const { vault } = this.plugin.app;
         const copiedFile = vault.getAbstractFileByPath(targetPath);
         if (!(copiedFile instanceof TFile)) throw new Error('복사된 파일을 찾을 수 없습니다.');
-
+    
         await vault.process(copiedFile, (data) => {
             const { frontmatter, body } = parseDocument(data);
             const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-
+    
             const filtered = base.filter(v => {
                 if (typeof v !== 'string') return true;
                 if (DATE_PATTERN.test(v)) return false;
@@ -202,12 +206,11 @@ export class Project {
                 if (INTERNAL_LINK_PATTERN.test(v)) return false;
                 return true;
             });
-
-            const m = moment();
-            filtered.push(m.format('YYYY년'), m.format('M월'), m.format('D일'));
+    
             sortBase(filtered);
             frontmatter['base'] = filtered;
-
+            frontmatter['uploadtime'] = moment().format('YYYY-MM-DD HH:mm');
+    
             return buildDocument(frontmatter, body);
         });
     }
@@ -295,7 +298,7 @@ class ProjectUploadModal extends Modal {
         private title: string,
         private copiedPath: string,
         private isReupload: boolean,
-        private existingDates: string[],
+        private existingDates: string,
         private bodyLinks: TFile[],
         private bodyLinkCopyExists: Map<TFile, boolean>,
         private projectName: string,
@@ -315,16 +318,16 @@ class ProjectUploadModal extends Modal {
 
         this.summaryCountEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
         infoEl.createEl('div', {
-            text: `업로드 날짜: ${moment().format('YYYY년 M월 D일')}`,
+        	text: `업로드 날짜: ${moment().format('YYYY년 M월 D일 HH:mm')}`,
             cls: 'project-modal-date'
         });
 
         if (this.isReupload) {
             const reuploadRow = infoEl.createDiv({ cls: 'project-modal-reupload-row' });
             reuploadRow.createEl('span', { text: '재업로드', cls: 'project-modal-badge' });
-            if (this.existingDates.length > 0) {
+            if (this.existingDates) {
                 reuploadRow.createEl('span', {
-                    text: `기존 업로드: ${this.existingDates.join(' ')}`,
+                    text: `기존 업로드: ${this.existingDates}`,
                     cls: 'project-modal-reupload-dates'
                 });
             }
@@ -427,7 +430,7 @@ class ProjectRemoveModal extends Modal {
         app: App,
         private title: string,
         private copiedPath: string,
-        private existingDates: string[],
+        private existingDates: string,
         private uploadedLinks: TFile[],
         private projectName: string,
         private currentCopyCount: number,
@@ -445,9 +448,9 @@ class ProjectRemoveModal extends Modal {
         const infoEl = contentEl.createDiv({ cls: 'project-modal-info' });
 
         this.summaryCountEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
-        if (this.existingDates.length > 0) {
+        if (this.existingDates) {
             infoEl.createEl('div', {
-                text: `업로드: ${this.existingDates.join(' ')}`,
+                text: `업로드: ${this.existingDates}`,
                 cls: 'project-modal-date'
             });
         }

@@ -16,7 +16,7 @@ export class PropertiesFeature {
     }
 
     async lintProperties(): Promise<void> {
-        const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base']);
+    	const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base', 'uploadtime']);
         const requiredKeys = Object.keys(this.plugin.settings.userproperties);
         const files = this.plugin.app.vault.getMarkdownFiles();
 
