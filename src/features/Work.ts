@@ -83,8 +83,9 @@ export class WorkFeature {
             }
     
             const timestamp = moment().format(this.plugin.settings.workTimestampFormat);
-            await vault.process(laterFile, (data) => data + `\n\n${timestamp}\n${content}`);
-            await vault.process(workFile, () => '');
+            const laterContent = await vault.read(laterFile);
+            await vault.modify(laterFile, laterContent + `\n\n${timestamp}\n${content}`);
+            await vault.modify(workFile, '');
             return true;
     
         } catch (error) {
