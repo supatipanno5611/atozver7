@@ -8,20 +8,36 @@ const CHUNK_SIZE = 25;
 export class Project {
     constructor(private plugin: ATOZVER6Plugin) {}
 
-    private getSettings(): { name: string; path: string } | null {
-        const { projectName, projectPath } = this.plugin.settings;
-        if (!projectName || !projectPath) {
-            new Notice('프로젝트 이름과 경로를 설정에서 지정해주세요.');
-            return null;
+    private getSettings(): { path: string; displayName: string } | null {
+        const { projectPath } = this.plugin.settings;
+        if (!projectPath) return null;
+        const displayName = projectPath.split('/').pop() ?? projectPath;
+        return { path: projectPath, displayName };
+    }
+
+    private getSetFromFile(file: TFile): string | null {
+        const cache = this.plugin.app.metadataCache.getFileCache(file);
+        const base = cache?.frontmatter?.['base'];
+        if (!Array.isArray(base)) return null;
+        return base.find((v): v is string => typeof v === 'string' && v.startsWith('.')) ?? null;
+    }
+
+    private getCopiedFileFromBase(file: TFile, projectPath: string): TFile | null {
+        const cache = this.plugin.app.metadataCache.getFileCache(file);
+        const base = cache?.frontmatter?.['base'];
+        if (!Array.isArray(base)) return null;
+        for (const v of base) {
+            if (typeof v !== 'string') continue;
+            const match = v.match(/^\[\[(.+)\]\]$/);
+            if (!match) continue;
+            const linkPath = match[1] + '.md';
+            if (!linkPath.startsWith(projectPath + '/')) continue;
+            const f = this.plugin.app.vault.getAbstractFileByPath(linkPath);
+            if (f instanceof TFile) return f;
         }
-        return { name: projectName, path: projectPath };
+        return null;
     }
 
-    private getCopiedFilePath(originalName: string, projectName: string, projectPath: string): string {
-        return `${projectPath}/${projectName}-${originalName}`;
-    }
-
-    // 파일의 본문 링크 중 vault에 실제 존재하는 것들 반환
     private getBodyLinks(file: TFile): TFile[] {
         const cache = this.plugin.app.metadataCache.getFileCache(file);
         const links = cache?.links ?? [];
@@ -33,154 +49,261 @@ export class Project {
         return result;
     }
 
-    // 사본의 날짜 항목 추출 (재업로드 여부 확인용)
     private getCopiedUploadTime(copiedFile: TFile): string {
         const cache = this.plugin.app.metadataCache.getFileCache(copiedFile);
         const uploadtime = cache?.frontmatter?.['uploadtime'];
         if (typeof uploadtime === 'string') return uploadtime;
-    
-        // 폴백: uploadtime 없는 기존 사본은 base 날짜로
         const base = cache?.frontmatter?.['base'];
         if (!Array.isArray(base)) return '';
         return base.filter((v): v is string => typeof v === 'string' && DATE_PATTERN.test(v)).join(' ');
     }
 
+    private isValidCopyBasename(basename: string, set: string): boolean {
+        const pattern = new RegExp(`^${set.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`);
+        return pattern.test(basename);
+    }
+
+    // set별 vault max를 한 번 스캔하고 메모리에서 증가
+    private buildUploadedNameMap(allFiles: TFile[], projectPath: string): Map<TFile, string> {
+        const map = new Map<TFile, string>();
+        const setMax = new Map<string, number>();
+
+        const scanSetMax = (set: string): number => {
+            const prefix = `${set}-`;
+            const files = this.plugin.app.vault.getMarkdownFiles()
+                .filter(f => f.path.startsWith(projectPath + '/'));
+            let max = 0;
+            for (const f of files) {
+                if (!f.basename.startsWith(prefix)) continue;
+                const n = parseInt(f.basename.slice(prefix.length), 10);
+                if (!isNaN(n) && n > max) max = n;
+            }
+            return max;
+        };
+
+        for (const file of allFiles) {
+            // 기존 사본 있으면 재사용
+            const existing = this.getCopiedFileFromBase(file, projectPath);
+            if (existing instanceof TFile) {
+                map.set(file, existing.basename);
+                continue;
+            }
+
+            // 없으면 새 번호 할당
+            const set = this.getSetFromFile(file);
+            if (!set) continue; // 호출자가 보장하지만 방어
+
+            if (!setMax.has(set)) setMax.set(set, scanSetMax(set));
+            const next = setMax.get(set)! + 1;
+            setMax.set(set, next);
+            map.set(file, `${set}-${next}`);
+        }
+        return map;
+    }
+
     async addActiveFileToProject(): Promise<void> {
         const proj = this.getSettings();
-        if (!proj) return;
-    
+        if (!proj) { new Notice('프로젝트 경로를 설정에서 지정해주세요.'); return; }
+
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile) { new Notice('활성 파일이 없습니다.'); return; }
         if (activeFile.extension !== 'md') { new Notice('마크다운 파일이 아닙니다.'); return; }
-    
+
         const raw = await this.plugin.app.vault.read(activeFile);
         const { frontmatter } = parseDocument(raw);
         if (Object.keys(frontmatter).length === 0) { new Notice('프론트매터가 없습니다.'); return; }
-    
-        const targetFolder = this.plugin.app.vault.getAbstractFileByPath(proj.path);
-        if (!(targetFolder instanceof TFolder)) { new Notice('대상 폴더가 없습니다.'); return; }
-    
-        const copiedPath = this.getCopiedFilePath(activeFile.name, proj.name, proj.path);
-        const existingCopy = this.plugin.app.vault.getAbstractFileByPath(copiedPath);
-        const isReupload = existingCopy instanceof TFile;
-        const existingDates = isReupload ? this.getCopiedUploadTime(existingCopy) : '';
-    
+
+        if (!(this.plugin.app.vault.getAbstractFileByPath(proj.path) instanceof TFolder)) {
+            new Notice('대상 폴더가 없습니다.');
+            return;
+        }
+
+        if (!this.getSetFromFile(activeFile)) {
+            new Notice('base에 set(.으로 시작하는 값)이 없습니다.');
+            return;
+        }
+
+        // bodyLinks 분리
         const bodyLinks = this.getBodyLinks(activeFile);
-        const title = frontmatter['title'] ?? '';
-    
-        // 현재 사본 수
+        const validBodyLinks: TFile[] = [];
+        const excludedBodyLinks: TFile[] = [];
+        for (const f of bodyLinks) {
+            if (this.getSetFromFile(f)) validBodyLinks.push(f);
+            else excludedBodyLinks.push(f);
+        }
+
+        // 번호 맵 구축
+        const allFiles = [activeFile, ...validBodyLinks];
+        const fileToBasename = this.buildUploadedNameMap(allFiles, proj.path);
+
+        // 규칙 위반 감지 (기존 사본이 {set}-숫자 패턴이 아니면 중단)
+        const violations: string[] = [];
+        for (const file of allFiles) {
+            const existing = this.getCopiedFileFromBase(file, proj.path);
+            if (!(existing instanceof TFile)) continue;
+            const set = this.getSetFromFile(file)!;
+            if (!this.isValidCopyBasename(existing.basename, set)) {
+                violations.push(existing.basename);
+            }
+        }
+        if (violations.length > 0) {
+            new Notice(`수동 편집된 사본이 있어 중단합니다: ${violations.join(', ')}`);
+            return;
+        }
+
+        // nameMap 파생
+        const nameToBasename = new Map(
+            [...fileToBasename].map(([f, b]) => [f.name, b])
+        );
+
+        // 모달 표시용 데이터
+        const activeFileCopy = this.getCopiedFileFromBase(activeFile, proj.path);
+        const isReupload = activeFileCopy instanceof TFile;
+        const existingDates = isReupload ? this.getCopiedUploadTime(activeFileCopy) : '';
+        const mainTitle = frontmatter['title'] ?? '';
+
         const currentCopyCount = this.plugin.app.vault.getMarkdownFiles()
             .filter(f => f.path.startsWith(proj.path + '/')).length;
-    
-        // 각 bodyLink의 사본 존재 여부
-        const bodyLinkCopyExists = new Map<TFile, boolean>();
-        for (const f of bodyLinks) {
-            const cp = this.getCopiedFilePath(f.name, proj.name, proj.path);
-            bodyLinkCopyExists.set(f, this.plugin.app.vault.getAbstractFileByPath(cp) instanceof TFile);
+
+        const allUploadPaths = allFiles.map(f => {
+            const cache = this.plugin.app.metadataCache.getFileCache(f);
+            const t = cache?.frontmatter?.['title'] ?? '';
+            return {
+                title: typeof t === 'string' ? t : '',
+                path: `${proj.path}/${fileToBasename.get(f)!}.md`
+            };
+        });
+
+        // newFileCount: 새로 생기는 사본 개수
+        let newFileCount = isReupload ? 0 : 1;
+        for (const f of validBodyLinks) {
+            if (!(this.getCopiedFileFromBase(f, proj.path) instanceof TFile)) newFileCount++;
         }
-    
+
         new ProjectUploadModal(
             this.plugin.app,
-            title,
-            copiedPath,
+            mainTitle,
+            allUploadPaths,
+            excludedBodyLinks,
             isReupload,
             existingDates,
-            bodyLinks,
-            bodyLinkCopyExists,
-            proj.name,
+            newFileCount,
+            proj.displayName,
             currentCopyCount,
-            async (selectedFiles: TFile[]) => {
-                await this.executeUpload(activeFile, selectedFiles, proj);
+            async () => {
+                await this.executeUpload(allFiles, proj, fileToBasename, nameToBasename);
             }
         ).open();
     }
 
     async removeActiveFileFromProject(): Promise<void> {
         const proj = this.getSettings();
-        if (!proj) return;
-    
+        if (!proj) { new Notice('프로젝트 경로를 설정에서 지정해주세요.'); return; }
+
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile) { new Notice('활성 파일이 없습니다.'); return; }
-    
-        const copiedPath = this.getCopiedFilePath(activeFile.name, proj.name, proj.path);
-        const existingCopy = this.plugin.app.vault.getAbstractFileByPath(copiedPath);
+
+        const existingCopy = this.getCopiedFileFromBase(activeFile, proj.path);
         if (!(existingCopy instanceof TFile)) {
             new Notice('프로젝트에 올라가 있는 파일이 아닙니다.');
             return;
         }
-    
+
         const cache = this.plugin.app.metadataCache.getFileCache(activeFile);
         const title = cache?.frontmatter?.['title'] ?? '';
         const existingDates = this.getCopiedUploadTime(existingCopy);
-    
+
+        // uploadedLinks와 사본 경로를 한 번에 구성
         const bodyLinks = this.getBodyLinks(activeFile);
-        const uploadedLinks = bodyLinks.filter(f => {
-            const cp = this.getCopiedFilePath(f.name, proj.name, proj.path);
-            return this.plugin.app.vault.getAbstractFileByPath(cp) instanceof TFile;
-        });
-    
+        const copiedPathMap = new Map<TFile, string>();
+        const uploadedLinks: TFile[] = [];
+        for (const f of bodyLinks) {
+            const copy = this.getCopiedFileFromBase(f, proj.path);
+            if (copy instanceof TFile) {
+                uploadedLinks.push(f);
+                copiedPathMap.set(f, copy.path);
+            }
+        }
+
         const currentCopyCount = this.plugin.app.vault.getMarkdownFiles()
             .filter(f => f.path.startsWith(proj.path + '/')).length;
-    
+
         new ProjectRemoveModal(
             this.plugin.app,
-            title,
-            copiedPath,
+            typeof title === 'string' ? title : '',
+            existingCopy.path,
             existingDates,
             uploadedLinks,
-            proj.name,
+            copiedPathMap,
+            proj.displayName,
             currentCopyCount,
             async (selectedFiles: TFile[]) => {
-                await this.executeRemove(activeFile, [activeFile, ...selectedFiles], proj);
+                await this.executeRemove([activeFile, ...selectedFiles], proj);
             }
         ).open();
     }
+
+    private async executeUpload(
+        allFiles: TFile[],
+        proj: { path: string; displayName: string },
+        fileToBasename: Map<TFile, string>,
+        nameToBasename: Map<string, string>
+    ): Promise<void> {
+        // 주의: 이 함수는 metadataCache를 쓰지 않음.
+        // 모든 정보는 주입받은 Map과 vault 직접 read로 처리하여
+        // 파일 수정 직후 캐시 갱신 지연의 영향을 받지 않음.
+        try {
+            // 1. 사본 생성
+            for (const file of allFiles) {
+                const targetPath = `${proj.path}/${fileToBasename.get(file)!}.md`;
+                await this.copyFile(file, targetPath);
+                await this.processCopiedBase(targetPath);
+            }
     
-    private async executeUpload(mainFile: TFile, additionalFiles: TFile[], proj: { name: string; path: string }): Promise<void> {
-        const allFiles = [mainFile, ...additionalFiles];
-        const uploadedNames = new Set(allFiles.map(f => f.name));
-
-        // 1. 사본 생성
-        for (const file of allFiles) {
-            const targetPath = this.getCopiedFilePath(file.name, proj.name, proj.path);
-            await this.copyFile(file, targetPath);
-            await this.processCopiedBase(targetPath);
+            // 2. 사본 본문 링크 재작성
+            for (const file of allFiles) {
+                const targetPath = `${proj.path}/${fileToBasename.get(file)!}.md`;
+                await this.rewriteBodyLinks(targetPath, nameToBasename);
+            }
+    
+            // 3. 기존 사본 링크 갱신
+            await this.updateExistingCopies(nameToBasename, proj);
+    
+            // 4. 원본 base 갱신
+            for (const file of allFiles) {
+                const targetPath = `${proj.path}/${fileToBasename.get(file)!}.md`;
+                await this.updateOriginalBase(file, targetPath);
+            }
+    
+            new Notice(`${allFiles.length}개 파일을 ${proj.displayName}에 추가했습니다.`);
+        } catch (error) {
+            console.error('executeUpload 실패:', error);
+            new Notice(`업로드 중 오류 발생: ${error instanceof Error ? error.message : String(error)}. 재업로드를 시도해주세요.`);
         }
-
-        // 2. 함께 올리는 파일들끼리 본문 링크 재작성
-        for (const file of allFiles) {
-            const targetPath = this.getCopiedFilePath(file.name, proj.name, proj.path);
-            await this.rewriteBodyLinks(targetPath, uploadedNames, proj);
-        }
-
-        // 3. projectPath 내 기존 사본들 링크 갱신
-        await this.updateExistingCopies(uploadedNames, proj);
-
-        // 4. 원본 base 갱신
-        for (const file of allFiles) {
-            const targetPath = this.getCopiedFilePath(file.name, proj.name, proj.path);
-            await this.updateOriginalBase(file, targetPath);
-        }
-
-        new Notice(`${allFiles.length}개 파일을 ${proj.name}에 추가했습니다.`);
     }
 
-    private async executeRemove(mainFile: TFile, allFiles: TFile[], proj: { name: string; path: string }): Promise<void> {
-        for (const file of allFiles) {
-            const copiedPath = this.getCopiedFilePath(file.name, proj.name, proj.path);
-            const copiedFile = this.plugin.app.vault.getAbstractFileByPath(copiedPath);
-            if (copiedFile instanceof TFile) await this.plugin.app.vault.delete(copiedFile);
-
-            const linkPath = copiedPath.replace(/\.md$/, '');
-            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                const base = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-                frontmatter['base'] = base.filter(
-                    (v: unknown) => !(typeof v === 'string' && v === `[[${linkPath}]]`)
-                );
-            });
+    private async executeRemove(
+        allFiles: TFile[],
+        proj: { path: string; displayName: string }
+    ): Promise<void> {
+        try {
+            for (const file of allFiles) {
+                const copiedFile = this.getCopiedFileFromBase(file, proj.path);
+                if (!(copiedFile instanceof TFile)) continue;
+                const linkPath = copiedFile.path.replace(/\.md$/, '');
+                await this.plugin.app.vault.delete(copiedFile);
+                await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                    const base = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
+                    frontmatter['base'] = base.filter(
+                        (v: unknown) => !(typeof v === 'string' && v === `[[${linkPath}]]`)
+                    );
+                });
+            }
+            new Notice(`${allFiles.length}개 파일을 ${proj.displayName}에서 내렸습니다.`);
+        } catch (error) {
+            console.error('executeRemove 실패:', error);
+            new Notice(`내리기 중 오류 발생: ${error instanceof Error ? error.message : String(error)}`);
         }
-
-        new Notice(`${allFiles.length}개 파일을 ${proj.name}에서 내렸습니다.`);
     }
 
     private async copyFile(file: TFile, targetPath: string): Promise<void> {
@@ -194,11 +317,10 @@ export class Project {
         const { vault } = this.plugin.app;
         const copiedFile = vault.getAbstractFileByPath(targetPath);
         if (!(copiedFile instanceof TFile)) throw new Error('복사된 파일을 찾을 수 없습니다.');
-    
+
         await vault.process(copiedFile, (data) => {
             const { frontmatter, body } = parseDocument(data);
             const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-    
             const filtered = base.filter(v => {
                 if (typeof v !== 'string') return true;
                 if (DATE_PATTERN.test(v)) return false;
@@ -206,17 +328,14 @@ export class Project {
                 if (INTERNAL_LINK_PATTERN.test(v)) return false;
                 return true;
             });
-    
             sortBase(filtered);
             frontmatter['base'] = filtered;
             frontmatter['uploadtime'] = moment().format('YYYY-MM-DD HH:mm');
-    
             return buildDocument(frontmatter, body);
         });
     }
 
-    // 사본 본문에서 uploadedNames에 포함된 링크를 {project}-{파일명} 형식으로 재작성
-    private async rewriteBodyLinks(targetPath: string, uploadedNames: Set<string>, proj: { name: string; path: string }): Promise<void> {
+    private async rewriteBodyLinks(targetPath: string, nameToBasename: Map<string, string>): Promise<void> {
         const { vault } = this.plugin.app;
         const copiedFile = vault.getAbstractFileByPath(targetPath);
         if (!(copiedFile instanceof TFile)) return;
@@ -225,30 +344,30 @@ export class Project {
             return data.replace(/\[\[([^\]|#^]+)((?:#[^\]|^]*)|(?:\^[^\]|]*))?(?:\|[^\]]*)?\]\]/g, (match, name, frag) => {
                 const trimmed = (name as string).trim();
                 const fileName = trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`;
-                if (!uploadedNames.has(fileName)) return match;
-                const newName = `${proj.name}-${trimmed}`;
-                return frag ? `[[${newName}${frag}]]` : `[[${newName}]]`;
+                const newBasename = nameToBasename.get(fileName);
+                if (!newBasename) return match;
+                return frag ? `[[${newBasename}${frag}]]` : `[[${newBasename}]]`;
             });
         });
     }
 
-    // projectPath 내 기존 사본들 중 이번에 올라온 파일을 링크하는 것들 갱신
-    private async updateExistingCopies(uploadedNames: Set<string>, proj: { name: string; path: string }): Promise<void> {
+    private async updateExistingCopies(
+        nameToBasename: Map<string, string>,
+        proj: { path: string }
+    ): Promise<void> {
         const { vault } = this.plugin.app;
         const folder = vault.getAbstractFileByPath(proj.path);
         if (!(folder instanceof TFolder)) return;
 
-        // 기존 사본 파일 목록 (이번에 새로 올린 것 제외)
+        // 이번에 올린 사본은 제외 (사본의 basename이 nameToBasename의 값에 포함됨)
+        const newBasenames = new Set(nameToBasename.values());
         const existingCopies = vault.getMarkdownFiles().filter(f =>
-            f.path.startsWith(proj.path + '/') &&
-            !uploadedNames.has(f.name.replace(new RegExp(`^${proj.name}-`), ''))
+            f.path.startsWith(proj.path + '/') && !newBasenames.has(f.basename)
         );
 
-        // 병렬 읽기
         const contents = await Promise.all(existingCopies.map(f => vault.read(f)));
-
-        // 변경 필요한 파일만 추림
         const toWrite: { file: TFile; content: string }[] = [];
+
         for (let i = 0; i < existingCopies.length; i++) {
             const file = existingCopies[i];
             const original = contents[i];
@@ -257,15 +376,14 @@ export class Project {
             const rewritten = original.replace(/\[\[([^\]|#^]+)((?:#[^\]|^]*)|(?:\^[^\]|]*))?(?:\|[^\]]*)?\]\]/g, (match, name, frag) => {
                 const trimmed = (name as string).trim();
                 const fileName = trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`;
-                if (!uploadedNames.has(fileName)) return match;
-                const newName = `${proj.name}-${trimmed}`;
-                return frag ? `[[${newName}${frag}]]` : `[[${newName}]]`;
+                const newBasename = nameToBasename.get(fileName);
+                if (!newBasename) return match;
+                return frag ? `[[${newBasename}${frag}]]` : `[[${newBasename}]]`;
             });
 
             if (rewritten !== original) toWrite.push({ file, content: rewritten });
         }
 
-        // 25개 청크로 쓰기
         for (let i = 0; i < toWrite.length; i += CHUNK_SIZE) {
             const chunk = toWrite.slice(i, i + CHUNK_SIZE);
             for (const { file, content } of chunk) {
@@ -289,21 +407,17 @@ export class Project {
 
 // ─── Upload Modal ─────────────────────────────────────────────────────────────
 class ProjectUploadModal extends Modal {
-    private checkboxes: Map<TFile, HTMLInputElement> = new Map();
-    private pathListEl!: HTMLElement;
-    private summaryCountEl!: HTMLElement;
-
     constructor(
         app: App,
         private title: string,
-        private copiedPath: string,
+        private allUploadPaths: { title: string; path: string }[],
+        private excludedBodyLinks: TFile[],
         private isReupload: boolean,
         private existingDates: string,
-        private bodyLinks: TFile[],
-        private bodyLinkCopyExists: Map<TFile, boolean>,
-        private projectName: string,
+        private newFileCount: number,
+        private projectDisplayName: string,
         private currentCopyCount: number,
-        private onConfirm: (selectedFiles: TFile[]) => Promise<void>,
+        private onConfirm: () => Promise<void>,
     ) {
         super(app);
     }
@@ -313,12 +427,13 @@ class ProjectUploadModal extends Modal {
         contentEl.empty();
         this.titleEl.setText(this.isReupload ? '재업로드' : '프로젝트에 추가');
 
-        // 파일 정보 (맨 위, 배경색 없음)
+        // 헤더 정보
         const infoEl = contentEl.createDiv({ cls: 'project-modal-info' });
+        const summaryEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
+        summaryEl.setText(`${this.projectDisplayName} (${this.currentCopyCount}) +${this.newFileCount}`);
 
-        this.summaryCountEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
         infoEl.createEl('div', {
-        	text: `업로드 날짜: ${moment().format('YYYY년 M월 D일 HH:mm')}`,
+            text: `업로드 날짜: ${moment().format('YYYY년 M월 D일 HH:mm')}`,
             cls: 'project-modal-date'
         });
 
@@ -333,39 +448,25 @@ class ProjectUploadModal extends Modal {
             }
         }
 
-        this.renderSummaryCount();
-
         // 경로 목록
-        this.pathListEl = contentEl.createDiv({ cls: 'project-modal-path-list' });
-        this.renderPathList();
+        const pathListEl = contentEl.createDiv({ cls: 'project-modal-path-list' });
+        for (const { title, path } of this.allUploadPaths) {
+            const text = title ? `${title}: ${path}` : path;
+            pathListEl.createEl('div', { text, cls: 'project-modal-path-item' });
+        }
 
-        // 연결 노트
-        const linksEl = contentEl.createDiv({ cls: 'project-modal-links' });
-        linksEl.createEl('div', { text: '연결된 노트', cls: 'project-modal-links-header' });
-
-        if (this.bodyLinks.length === 0) {
-            linksEl.createEl('div', { text: '연결된 노트 없음', cls: 'project-modal-empty' });
-        } else {
-            const toggleEl = linksEl.createEl('label', { cls: 'project-modal-toggle' });
-            const toggleInput = toggleEl.createEl('input', { type: 'checkbox' });
-            toggleEl.createSpan({ text: '전체 선택' });
-            toggleInput.addEventListener('change', () => {
-                for (const input of this.checkboxes.values()) {
-                    input.checked = toggleInput.checked;
-                }
-                this.renderPathList();
-                this.renderSummaryCount();
+        // 제외된 노트
+        if (this.excludedBodyLinks.length > 0) {
+            const excludedEl = contentEl.createDiv({ cls: 'project-modal-excluded' });
+            excludedEl.createEl('div', {
+                text: '⚠ 아래 노트는 set이 없어 제외됩니다',
+                cls: 'project-modal-excluded-header'
             });
-
-            for (const file of this.bodyLinks) {
-                const label = linksEl.createEl('label', { cls: 'project-modal-link-item' });
-                const input = label.createEl('input', { type: 'checkbox' });
-                label.createSpan({ text: file.basename });
-                input.addEventListener('change', () => {
-                    this.renderPathList();
-                    this.renderSummaryCount();
+            for (const file of this.excludedBodyLinks) {
+                excludedEl.createEl('div', {
+                    text: `· ${file.basename}`,
+                    cls: 'project-modal-excluded-item'
                 });
-                this.checkboxes.set(file, input);
             }
         }
 
@@ -376,51 +477,15 @@ class ProjectUploadModal extends Modal {
 
         confirmBtn.addEventListener('click', async () => {
             this.close();
-            const selected = this.bodyLinks.filter(f => this.checkboxes.get(f)?.checked);
-            await this.onConfirm(selected);
+            await this.onConfirm();
         });
         cancelBtn.addEventListener('click', () => this.close());
-    }
-
-    private getSelectedNewCount(): number {
-        let count = this.isReupload ? 0 : 1;
-        for (const [file, input] of this.checkboxes) {
-            if (input.checked && !this.bodyLinkCopyExists.get(file)) count++;
-        }
-        return count;
-    }
-
-    private renderSummaryCount() {
-        const n = this.getSelectedNewCount();
-        const sign = n > 0 ? `+${n}` : '+0';
-        this.summaryCountEl.setText(`${this.projectName} (${this.currentCopyCount}) ${sign}`);
-    }
-
-    private renderPathList() {
-        this.pathListEl.empty();
-        const basePath = this.copiedPath.substring(0, this.copiedPath.lastIndexOf('/'));
-        const allFiles = [
-            { title: this.title, path: this.copiedPath },
-            ...this.bodyLinks
-                .filter(f => this.checkboxes.get(f)?.checked)
-                .map(f => {
-                    const cache = this.app.metadataCache.getFileCache(f);
-                    const t = cache?.frontmatter?.['title'] ?? '';
-                    const p = `${basePath}/${this.projectName}-${f.name}`;
-                    return { title: t, path: p };
-                })
-        ];
-        for (const { title, path } of allFiles) {
-            const text = title ? `${title}: ${path}` : path;
-            this.pathListEl.createEl('div', { text, cls: 'project-modal-path-item' });
-        }
     }
 
     onClose() { this.contentEl.empty(); }
 }
 
 // ─── Remove Modal ─────────────────────────────────────────────────────────────
-
 class ProjectRemoveModal extends Modal {
     private checkboxes: Map<TFile, HTMLInputElement> = new Map();
     private pathListEl!: HTMLElement;
@@ -432,7 +497,8 @@ class ProjectRemoveModal extends Modal {
         private copiedPath: string,
         private existingDates: string,
         private uploadedLinks: TFile[],
-        private projectName: string,
+        private copiedPathMap: Map<TFile, string>,
+        private projectDisplayName: string,
         private currentCopyCount: number,
         private onConfirm: (selectedFiles: TFile[]) => Promise<void>,
     ) {
@@ -444,9 +510,7 @@ class ProjectRemoveModal extends Modal {
         contentEl.empty();
         this.titleEl.setText('프로젝트에서 내리기');
 
-        // 파일 정보 (맨 위, 배경색 없음)
         const infoEl = contentEl.createDiv({ cls: 'project-modal-info' });
-
         this.summaryCountEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
         if (this.existingDates) {
             infoEl.createEl('div', {
@@ -457,11 +521,9 @@ class ProjectRemoveModal extends Modal {
 
         this.renderSummaryCount();
 
-        // 경로 목록
         this.pathListEl = contentEl.createDiv({ cls: 'project-modal-path-list' });
         this.renderPathList();
 
-        // 연결 노트
         const linksEl = contentEl.createDiv({ cls: 'project-modal-links' });
         linksEl.createEl('div', { text: '함께 내릴 노트', cls: 'project-modal-links-header' });
 
@@ -491,7 +553,6 @@ class ProjectRemoveModal extends Modal {
             }
         }
 
-        // 버튼
         const btnEl = contentEl.createDiv({ cls: 'project-modal-buttons' });
         const cancelBtn = btnEl.createEl('button', { text: '취소' });
         const confirmBtn = btnEl.createEl('button', { text: '내리기', cls: 'mod-warning' });
@@ -506,24 +567,24 @@ class ProjectRemoveModal extends Modal {
 
     private renderSummaryCount() {
         const n = 1 + [...this.checkboxes.values()].filter(i => i.checked).length;
-        this.summaryCountEl.setText(`${this.projectName} (${this.currentCopyCount}) -${n}`);
+        this.summaryCountEl.setText(`${this.projectDisplayName} (${this.currentCopyCount}) -${n}`);
     }
 
     private renderPathList() {
         this.pathListEl.empty();
-        const basePath = this.copiedPath.substring(0, this.copiedPath.lastIndexOf('/'));
-        const allFiles = [
-            { title: this.title, path: this.copiedPath },
-            ...this.uploadedLinks
-                .filter(f => this.checkboxes.get(f)?.checked)
-                .map(f => {
-                    const cache = this.app.metadataCache.getFileCache(f);
-                    const t = cache?.frontmatter?.['title'] ?? '';
-                    const p = `${basePath}/${this.projectName}-${f.name}`;
-                    return { title: t, path: p };
-                })
-        ];
-        for (const { title, path } of allFiles) {
+        const mainEntry = { title: this.title, path: this.copiedPath };
+        const selectedEntries = this.uploadedLinks
+            .filter(f => this.checkboxes.get(f)?.checked)
+            .map(f => {
+                const cache = this.app.metadataCache.getFileCache(f);
+                const t = cache?.frontmatter?.['title'];
+                return {
+                    title: typeof t === 'string' ? t : '',
+                    path: this.copiedPathMap.get(f) ?? ''
+                };
+            });
+
+        for (const { title, path } of [mainEntry, ...selectedEntries]) {
             const text = title ? `${title}: ${path}` : path;
             this.pathListEl.createEl('div', { text, cls: 'project-modal-path-item project-modal-path-item--remove' });
         }

@@ -137,4 +137,34 @@ export class WorkFeature {
             new Notice('작업 문서를 여는 중 오류가 발생했습니다.');
         }
     }
+
+    async openLaterFile() {
+        const { workspace, vault } = this.plugin.app;
+        const path = this.plugin.settings.laterFilePath;
+    
+        try {
+            const targetFile = vault.getAbstractFileByPath(path);
+            if (!(targetFile instanceof TFile)) {
+                new Notice(`파일을 찾을 수 없습니다: ${path}`);
+                return;
+            }
+    
+            let existingLeaf: WorkspaceLeaf | null = null;
+            workspace.iterateRootLeaves((leaf) => {
+                if (!existingLeaf && leaf.view instanceof MarkdownView &&
+                    leaf.view.file?.path === path) {
+                    existingLeaf = leaf;
+                }
+            });
+    
+            const leaf = existingLeaf ?? workspace.getLeaf(true);
+            if (!existingLeaf) await leaf.openFile(targetFile);
+    
+            workspace.setActiveLeaf(leaf, { focus: true });
+            if (leaf.view instanceof MarkdownView) leaf.view.editor.focus();
+    
+        } catch (error) {
+            new Notice('보관 문서를 여는 중 오류가 발생했습니다.');
+        }
+    }
 }

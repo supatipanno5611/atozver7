@@ -1,11 +1,11 @@
 {
 	"id": "atoz",
 	"name": "기능",
-	"version": "6.0.0",
+	"version": "7.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "다양한 기능을 추가합니다.",
-	"author": "ujupatipanno",
-	"authorUrl": "https://github.com/ujupatipanno",
+	"author": "supatipanno5611",
+	"authorUrl": "https://github.com/supatipanno5611",
 	"fundingUrl": "https://buymeacoffee.com/ujupatipanno",
 	"isDesktopOnly": false
 }

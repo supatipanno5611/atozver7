@@ -1,31 +1,23 @@
 export interface ATOZSettings {
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
-    sets: string[];
-    recentSets: string[];
-    ordinaryFilePath: string;
     userproperties: Record<string, string>;
     projectName: string;
     projectPath: string;
-    usedMaxNumbers: Record<string, number>;
     saveMdMaxRepeat: number;
     saveMdAutoSaveTrigger: number;
     saveMdAutoSaveTarget: string;
     saveMdFolderPath: string;
     saveMdDateFormat: string;
-    titleTrigger: string;
     snippetTrigger: string;
     snippetLimit: number;
     snippets: string[];
     recentSnippets: Record<string, number>;
-    switcherFilePrefix: string;
-    recentSwitcher: Record<string, number>;
     symbolTrigger: string;
     symbolLimit: number;
     symbols: SymbolItem[];
     symbolPairs: Record<string, string>;
     recentSymbols: Record<string, number>;
-    taskFilePath: string;
     workFilePath: string;
     laterFilePath: string;
     workTimestampFormat: string;
@@ -46,22 +38,12 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     // Cursor Center
     isCursorCenterEnabled: false,
 
-    // New Note
-    sets: [],
-    recentSets: [],
-    
-    // Ordinary
-    ordinaryFilePath: 'ordinary.md',
-    
     // Properties
-    userproperties: {
-        "title": "[]"
-    },
+    userproperties: {},
 
     // Project
     projectName: '',
     projectPath: '',
-    usedMaxNumbers: {},
         
     // SaveMD
     saveMdMaxRepeat: 150,
@@ -70,18 +52,11 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     saveMdFolderPath: "save",
     saveMdDateFormat: "YYYYMMDDHHmmss",
 
-    // Title
-    titleTrigger: '/',
-    
     // Snippets
     snippetTrigger: "@",
     snippetLimit: 5,
     snippets: ["하나", "둘", "셋"],
     recentSnippets: {},
-
-    // Switcher
-    switcherFilePrefix: '@',
-    recentSwitcher: {},
     
     // Symbols
     symbolTrigger: "~",
@@ -106,13 +81,9 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
         "『": "』"
     },
     recentSymbols: {},
-    
-    // Task
-    taskFilePath: 'task.md',
-    
+        
     // Work
     workFilePath: 'work.md',
     laterFilePath: 'later.md',
     workTimestampFormat: 'MM/DD HH:mm:ss'
-
 };

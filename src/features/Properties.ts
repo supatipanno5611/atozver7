@@ -24,8 +24,6 @@ export class PropertiesFeature {
             'log.md',
             this.plugin.settings.workFilePath,
             this.plugin.settings.laterFilePath,
-            this.plugin.settings.taskFilePath,
-            this.plugin.settings.ordinaryFilePath,
         ]);
     
         let cleanedCount = 0;
