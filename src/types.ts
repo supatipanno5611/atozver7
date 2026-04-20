@@ -2,7 +2,6 @@ export interface ATOZSettings {
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
     userproperties: Record<string, string>;
-    projectName: string;
     projectPath: string;
     saveMdMaxRepeat: number;
     saveMdAutoSaveTrigger: number;
@@ -42,7 +41,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     userproperties: {},
 
     // Project
-    projectName: '',
     projectPath: '',
         
     // SaveMD
