@@ -8,6 +8,15 @@ export class ExecutesFeature {
     async focusRootLeaf() {
         const { workspace } = this.plugin.app;
     
+        // 이미 메인탭 MarkdownView에 있으면 커서만 활성화
+        const activeLeaf = workspace.getMostRecentLeaf();
+        if (activeLeaf?.getRoot() === workspace.rootSplit &&
+            activeLeaf.view instanceof MarkdownView &&
+            activeLeaf.view.file) {
+            activeLeaf.view.editor.focus();
+            return;
+        }
+    
         const rootLeaves: WorkspaceLeaf[] = [];
         workspace.iterateRootLeaves((leaf) => {
             if (leaf.view instanceof MarkdownView && leaf.view.file) rootLeaves.push(leaf);
