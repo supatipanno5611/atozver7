@@ -3,11 +3,6 @@ export interface ATOZSettings {
     isCursorCenterEnabled: boolean;
     userproperties: Record<string, string>;
     projectPath: string;
-    saveMdMaxRepeat: number;
-    saveMdAutoSaveTrigger: number;
-    saveMdAutoSaveTarget: string;
-    saveMdFolderPath: string;
-    saveMdDateFormat: string;
     snippetTrigger: string;
     snippetLimit: number;
     snippets: string[];
@@ -42,13 +37,6 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
 
     // Project
     projectPath: '',
-        
-    // SaveMD
-    saveMdMaxRepeat: 150,
-    saveMdAutoSaveTrigger: 500,
-    saveMdAutoSaveTarget: "",
-    saveMdFolderPath: "save",
-    saveMdDateFormat: "YYYYMMDDHHmmss",
 
     // Snippets
     snippetTrigger: "@",

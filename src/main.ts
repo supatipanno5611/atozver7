@@ -12,7 +12,6 @@ import { HeadingNavigaterFeature } from './features/HeadingNavigater';
 import { PropertiesFeature } from './features/Properties';
 import { CutCopyFeature } from './features/CutCopy';
 import { CycleTabFeature } from './features/CycleTab';
-import { SaveMDFeature } from './features/SaveMD';
 import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
@@ -32,7 +31,6 @@ export default class ATOZVER6Plugin extends Plugin {
     properties: PropertiesFeature;
     cutCopy: CutCopyFeature;
     cycleTab: CycleTabFeature;
-    saveMD: SaveMDFeature;
     snippets: SnippetsFeature;
     symbols: SymbolsFeature;
     work: WorkFeature;
@@ -55,7 +53,6 @@ export default class ATOZVER6Plugin extends Plugin {
         this.properties = new PropertiesFeature(this);
         this.cutCopy = new CutCopyFeature(this);
         this.cycleTab = new CycleTabFeature(this);
-        this.saveMD = new SaveMDFeature(this);
         this.snippets = new SnippetsFeature(this);
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
@@ -125,14 +122,6 @@ export default class ATOZVER6Plugin extends Plugin {
     }
 
     registerRibbonIcon() {
-        this.addRibbonIcon("lucide-save", "세이브 파일 만들기", () => {
-            const activeFile = this.app.workspace.getActiveFile();
-            if (activeFile) {
-                this.saveMD.createSaveFile(activeFile);
-            } else {
-                new Notice("활성화된 파일이 없습니다.");
-            }
-        });
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => this.work.openWorkFile());
     }
 
@@ -185,11 +174,6 @@ export default class ATOZVER6Plugin extends Plugin {
             }
         });
 
-        // [SaveMD]
-        this.addCommand({ id: "create-save-file", name: "현재 문서의 세이브 파일 만들기", checkCallback: (checking: boolean) => this.saveMD.checkCreateSaveFile(checking) });
-        this.addCommand({ id: 'set-auto-save-target', name: '현재 문서를 n타마다 자동 세이브 대상으로 지정', callback: () => this.saveMD.handleSetAutoSaveTarget() });
-        this.addCommand({ id: 'unset-auto-save-target', name: '현재 문서를 n타마다 자동 세이브 대상에서 해제', callback: () => this.saveMD.handleUnsetAutoSaveTarget() });
-
         // [Selection]
         this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: "lucide-chevrons-left", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowLeft" }], editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
         this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: "lucide-chevrons-right", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowRight" }], editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
@@ -235,13 +219,7 @@ export default class ATOZVER6Plugin extends Plugin {
                 });
             })
         );
-
-        // [SaveMD] Keyboard Events
-        this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
-            this.saveMD.handleAbnormalInput(evt);
-            this.saveMD.handleAutoSaveInput(evt);
-        });
-
+        
         // [Symbols] Backspace Event
         this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
             this.symbols.handleSmartBackspace(evt);
