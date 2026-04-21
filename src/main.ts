@@ -123,6 +123,7 @@ export default class ATOZVER6Plugin extends Plugin {
 
     registerRibbonIcon() {
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => this.work.openWorkFile());
+        this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => this.work.openLaterFile());
     }
 
     registerCommands() {
