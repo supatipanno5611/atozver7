@@ -1,5 +1,5 @@
 import type ATOZVER6Plugin from '../main';
-import { Notice, TFile, WorkspaceLeaf } from 'obsidian';
+import { MarkdownView, Notice, TFile, WorkspaceLeaf } from 'obsidian';
 
 export class CertainMdFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -16,7 +16,7 @@ export class CertainMdFeature {
         const file = this.plugin.app.vault.getAbstractFileByPath(CertainMdPath);
 
         if (!(file instanceof TFile)) {
-            console.error("파일을 찾을 수 없습니다: " + CertainMdPath);
+            new Notice(`파일을 찾을 수 없습니다: ${CertainMdPath}`);
             return;
         }
 
@@ -24,7 +24,8 @@ export class CertainMdFeature {
         let targetLeaf: WorkspaceLeaf | null = null;
 
         this.plugin.app.workspace.iterateRootLeaves((leaf) => {
-            if (leaf.view.getState().file === CertainMdPath) {
+            if (!targetLeaf && leaf.view instanceof MarkdownView &&
+                leaf.view.file?.path === CertainMdPath) {
                 targetLeaf = leaf;
             }
         });

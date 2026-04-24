@@ -1,5 +1,5 @@
 import type ATOZVER6Plugin from '../main';
-import { Editor, EditorSelection } from 'obsidian';
+import { Editor } from 'obsidian';
 
 export class SelectionFeature {
     constructor(private plugin: ATOZVER6Plugin) {}

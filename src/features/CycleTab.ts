@@ -1,6 +1,5 @@
 import type ATOZVER6Plugin from '../main';
 import { MarkdownView, WorkspaceLeaf } from 'obsidian';
-import { pickMostRecentLeaf } from '../utils';
 
 export class CycleTabFeature {
     constructor(private plugin: ATOZVER6Plugin) {}

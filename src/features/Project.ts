@@ -1,7 +1,7 @@
 import type ATOZVER6Plugin from '../main';
 import { App, Modal, Notice, TFile, TFolder } from 'obsidian';
 import { moment } from 'obsidian';
-import { parseDocument, buildDocument, DATE_PATTERN, INTERNAL_LINK_PATTERN, sortBase } from '../utils';
+import { parseDocument, buildDocument, DATE_PATTERN, INTERNAL_LINK_PATTERN, sortBase, escapeRegex } from '../utils';
 
 const CHUNK_SIZE = 25;
 
@@ -60,7 +60,7 @@ export class Project {
 
     private isValidCopyBasename(basename: string, set: string): boolean {
         const setName = set.replace(/^\./, '');
-        const pattern = new RegExp(`^${setName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`);
+        const pattern = new RegExp(`^${escapeRegex(setName)}-\\d+$`);
         return pattern.test(basename);
     }
 
@@ -85,7 +85,7 @@ export class Project {
 
     private async appendLog(context: string, error: unknown): Promise<void> {
         const { vault } = this.plugin.app;
-        const timestamp = (moment as any)().format('YYYY-MM-DD HH:mm:ss');
+        const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
         const message = error instanceof Error ? error.message : String(error);
         const stack = error instanceof Error && error.stack ? `\n\`\`\`\n${error.stack}\n\`\`\`` : '';
         const entry = `## ${timestamp} — ${context}\n${message}${stack}\n`;
@@ -383,7 +383,7 @@ export class Project {
         });
         sortBase(filtered);
         frontmatter['base'] = filtered;
-        frontmatter['uploadtime'] = (moment as any)().format('YYYY-MM-DD HH:mm');
+        frontmatter['uploadtime'] = moment().format('YYYY-MM-DD HH:mm');
 
         const content = this.rewriteLinks(buildDocument(frontmatter, body), nameToBasename);
         await vault.create(targetPath, content);
@@ -458,7 +458,7 @@ class ProjectUploadModal extends Modal {
         summaryEl.setText(`${this.projectDisplayName} (${this.currentCopyCount}) +${this.newFileCount}`);
 
         infoEl.createEl('div', {
-            text: `업로드 날짜: ${(moment as any)().format('YYYY년 M월 D일 HH:mm')}`,
+            text: `업로드 날짜: ${moment().format('YYYY년 M월 D일 HH:mm')}`,
             cls: 'project-modal-date'
         });
 
