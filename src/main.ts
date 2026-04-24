@@ -163,6 +163,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => this.project.addActiveFileToProject() });
         this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 내리기', callback: () => this.project.removeActiveFileFromProject() });
         this.addCommand({ id: 'export-project', name: '프로젝트를 외부 경로로 내보내기', callback: () => this.project.exportProjectToPath() });
+        this.addCommand({ id: 'fix-project-link-aliases', name: '프로젝트 링크 별칭 교정', callback: () => this.project.fixProjectLinkAliases() });
 
         // [Properties]
         this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", callback: () => this.properties.insertProperties() });

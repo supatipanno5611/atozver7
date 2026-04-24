@@ -239,6 +239,49 @@ export class Project {
         ).open();
     }
 
+    async fixProjectLinkAliases(): Promise<void> {
+        const proj = this.getSettings();
+        if (!proj) { new Notice('프로젝트 경로를 설정에서 지정해주세요.'); return; }
+
+        const { vault } = this.plugin.app;
+        const projectFiles = vault.getMarkdownFiles()
+            .filter(f => f.path.startsWith(proj.path + '/'));
+
+        if (projectFiles.length === 0) { new Notice('프로젝트에 파일이 없습니다.'); return; }
+
+        const copyToOriginal = new Map<string, string>();
+        for (const file of projectFiles) {
+            const cache = this.plugin.app.metadataCache.getFileCache(file);
+            const title = cache?.frontmatter?.['title'];
+            if (typeof title === 'string' && title) {
+                copyToOriginal.set(file.basename, title);
+            }
+        }
+
+        let fixedCount = 0;
+        for (const file of projectFiles) {
+            const original = await vault.read(file);
+            const fixed = this.fixLinkAliases(original, copyToOriginal);
+            if (fixed !== original) {
+                await vault.modify(file, fixed);
+                fixedCount++;
+            }
+        }
+
+        new Notice(fixedCount > 0 ? `${fixedCount}개 파일의 링크 별칭을 교정했습니다.` : '교정할 링크가 없습니다.');
+    }
+
+    private fixLinkAliases(content: string, copyToOriginal: Map<string, string>): string {
+        return content.replace(/\[\[([^\]|#^]+)((?:#[^\]|^]*)|(?:\^[^\]|]*))?(?:\|([^\]]*))?\]\]/g, (match, name, frag, alias) => {
+            const trimmed = (name as string).trim();
+            const basename = trimmed.endsWith('.md') ? trimmed.slice(0, -3) : trimmed;
+            const originalBasename = copyToOriginal.get(basename);
+            if (!originalBasename) return match;
+            if ((alias as string | undefined)?.trim() === originalBasename) return match;
+            return frag ? `[[${trimmed}${frag}|${originalBasename}]]` : `[[${trimmed}|${originalBasename}]]`;
+        });
+    }
+
     async exportProjectToPath(): Promise<void> {
         const proj = this.getSettings();
         if (!proj) { new Notice('프로젝트 경로를 설정에서 지정해주세요.'); return; }
