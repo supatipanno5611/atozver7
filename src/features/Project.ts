@@ -51,7 +51,7 @@ export class Project {
 
     private getCopiedUploadTime(copiedFile: TFile): string {
         const cache = this.plugin.app.metadataCache.getFileCache(copiedFile);
-        const uploadtime = cache?.frontmatter?.['uploadtime'];
+        const uploadtime = cache?.frontmatter?.['date'];
         if (typeof uploadtime === 'string') return uploadtime;
         const base = cache?.frontmatter?.['base'];
         if (!Array.isArray(base)) return '';
@@ -103,7 +103,7 @@ export class Project {
             const fileName = trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`;
             const newBasename = nameToBasename.get(fileName);
             if (!newBasename) return match;
-            return frag ? `[[${newBasename}${frag}]]` : `[[${newBasename}]]`;
+            return frag ? `[[${newBasename}${frag}|${trimmed}]]` : `[[${newBasename}|${trimmed}]]`;
         });
     }
 
@@ -237,6 +237,33 @@ export class Project {
                 await this.executeUpload(allFiles, proj, fileToBasename, nameToBasename, isReupload);
             }
         ).open();
+    }
+
+    async exportProjectToPath(): Promise<void> {
+        const proj = this.getSettings();
+        if (!proj) { new Notice('프로젝트 경로를 설정에서 지정해주세요.'); return; }
+
+        const exportPath = this.plugin.settings.projectExportPath;
+        if (!exportPath) { new Notice('내보내기 경로를 설정에서 지정해주세요.'); return; }
+
+        const files = this.plugin.app.vault.getMarkdownFiles()
+            .filter(f => f.path.startsWith(proj.path + '/'));
+
+        if (files.length === 0) { new Notice('프로젝트에 파일이 없습니다.'); return; }
+
+        try {
+            const fs = require('fs').promises;
+            for (const file of files) {
+                const content = await this.plugin.app.vault.read(file);
+                const destPath = `${exportPath}/${file.basename}.mdx`;
+                await fs.writeFile(destPath, content, 'utf8');
+            }
+            new Notice(`${files.length}개 파일을 내보냈습니다.`);
+        } catch (error) {
+            console.error('exportProjectToPath 실패:', error);
+            await this.appendLog('exportProjectToPath', error);
+            new Notice('내보내기 중 오류가 발생했습니다. log.md를 확인해주세요.');
+        }
     }
 
     async removeActiveFileFromProject(): Promise<void> {
@@ -383,7 +410,8 @@ export class Project {
         });
         sortBase(filtered);
         frontmatter['base'] = filtered;
-        frontmatter['uploadtime'] = moment().format('YYYY-MM-DD HH:mm');
+        frontmatter['title'] = file.basename;
+        frontmatter['date'] = moment().format('YYYY-MM-DD');
 
         const content = this.rewriteLinks(buildDocument(frontmatter, body), nameToBasename);
         await vault.create(targetPath, content);
