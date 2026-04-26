@@ -1,8 +1,6 @@
-import {
-    Plugin, App, Editor, MarkdownView, WorkspaceLeaf, Notice, TFile,
-    PluginSettingTab, Setting
-} from 'obsidian';
+import { Plugin, Editor, MarkdownView, Notice, TFile } from 'obsidian';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
+import { ATOZSettingTab } from './setting';
 import { SelectionFeature } from './features/Selection';
 import { MoveCursorFeature } from './features/MoveCursor';
 import { ExecutesFeature } from './features/Executes';
@@ -163,7 +161,6 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => this.project.addActiveFileToProject() });
         this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 내리기', callback: () => this.project.removeActiveFileFromProject() });
         this.addCommand({ id: 'export-project', name: '프로젝트를 외부 경로로 내보내기', callback: () => this.project.exportProjectToPath() });
-        this.addCommand({ id: 'fix-project-link-aliases', name: '프로젝트 링크 별칭 교정', callback: () => this.project.fixProjectLinkAliases() });
 
         // [Properties]
         this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", callback: () => this.properties.insertProperties() });
@@ -230,49 +227,3 @@ export default class ATOZVER6Plugin extends Plugin {
     }
 }
 
-// =========================================================================
-// Setting Tab
-// =========================================================================
-
-export class ATOZSettingTab extends PluginSettingTab {
-    plugin: ATOZVER6Plugin;
-
-    constructor(app: App, plugin: ATOZVER6Plugin) {
-        super(app, plugin);
-        this.plugin = plugin;
-    }
-
-    display(statusMsg?: { text: string; isError?: boolean }): void {
-        const { containerEl } = this;
-        containerEl.empty();
-
-        let jsonString = JSON.stringify(this.plugin.settings, null, 2);
-
-        const textarea = containerEl.createEl('textarea', { cls: 'atoz-settings-textarea' });
-        textarea.value = jsonString;
-        textarea.addEventListener('input', () => { jsonString = textarea.value; });
-
-        const statusSetting = new Setting(containerEl)
-            .setName('저장 및 초기화')
-            .setDesc(statusMsg?.text ?? '변경 사항을 적용하거나 되돌립니다.')
-            .addButton((btn) =>
-                btn.setButtonText('변경 사항 적용').setCta().onClick(async () => {
-                    try {
-                        const parsedSettings = JSON.parse(jsonString);
-                        this.plugin.settings = Object.assign({}, this.plugin.settings, parsedSettings);
-                        await this.plugin.saveSettings();
-                        this.display({ text: '✅ 설정이 성공적으로 저장되었습니다.' });
-                    } catch (e) {
-                        statusSetting.setDesc('⚠️ JSON 문법 오류로 설정을 저장할 수 없습니다.');
-                    }
-                })
-            )
-            .addButton((btn) =>
-                btn.setButtonText('초기화').setWarning().onClick(async () => {
-                    this.plugin.settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
-                    await this.plugin.saveSettings();
-                    this.display({ text: '🔄 초기값으로 복구 완료' });
-                })
-            );
-    }
-}
