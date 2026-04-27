@@ -1,4 +1,4 @@
-import { Plugin, Editor, MarkdownView, Notice, TFile } from 'obsidian';
+import { Plugin, Editor, Notice, TFile } from 'obsidian';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
 import { ATOZSettingTab } from './setting';
 import { SelectionFeature } from './features/Selection';
@@ -15,26 +15,28 @@ import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { WorkFeature } from './features/Work';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
 import { DATE_PATTERN, URL_PATTERN, INTERNAL_LINK_PATTERN } from './utils';
-import { Project } from './features/Project';
+import { ProjectIngest } from './features/ProjectIngest';
+import { ProjectKeeper } from './features/ProjectKeeper';
 import { MobileFeature } from './features/Mobile';
 
 export default class ATOZVER6Plugin extends Plugin {
-    settings: ATOZSettings;
-    selection: SelectionFeature;
-    moveCursor: MoveCursorFeature;
-    executes: ExecutesFeature;
-    certainMd: CertainMdFeature;
-    cursorCenter: CursorCenterFeature;
-    headingNavigater: HeadingNavigaterFeature;
-    properties: PropertiesFeature;
-    cutCopy: CutCopyFeature;
-    cycleTab: CycleTabFeature;
-    snippets: SnippetsFeature;
-    symbols: SymbolsFeature;
-    work: WorkFeature;
-    cutCreateNewMd: CutCreateNewMdFeature;
-    project: Project;
-    mobile: MobileFeature;
+    settings!: ATOZSettings;
+    selection!: SelectionFeature;
+    moveCursor!: MoveCursorFeature;
+    executes!: ExecutesFeature;
+    certainMd!: CertainMdFeature;
+    cursorCenter!: CursorCenterFeature;
+    headingNavigater!: HeadingNavigaterFeature;
+    properties!: PropertiesFeature;
+    cutCopy!: CutCopyFeature;
+    cycleTab!: CycleTabFeature;
+    snippets!: SnippetsFeature;
+    symbols!: SymbolsFeature;
+    work!: WorkFeature;
+    cutCreateNewMd!: CutCreateNewMdFeature;
+    projectIngest!: ProjectIngest;
+    projectKeeper!: ProjectKeeper;
+    mobile!: MobileFeature;
 
     baseCandidates: string[] = [];
 
@@ -55,7 +57,8 @@ export default class ATOZVER6Plugin extends Plugin {
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
-        this.project = new Project(this);
+        this.projectIngest = new ProjectIngest(this);
+        this.projectKeeper = new ProjectKeeper(this);
         this.mobile = new MobileFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
@@ -148,8 +151,8 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => this.executes.focusRootLeaf() });
 
         // [HeadingNavigater]
-        this.addCommand({ id: 'go-to-previous-heading', name: '이전 heading으로 이동', icon: 'lucide-square-chevron-up', editorCallback: (editor: Editor, view: MarkdownView) => this.headingNavigater.moveHeading(editor, view, 'prev') });
-        this.addCommand({ id: 'go-to-next-heading', name: '다음 heading으로 이동', icon: 'lucide-square-chevron-down', editorCallback: (editor: Editor, view: MarkdownView) => this.headingNavigater.moveHeading(editor, view, 'next') });
+        this.addCommand({ id: 'go-to-previous-heading', name: '이전 heading으로 이동', icon: 'lucide-square-chevron-up', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'prev') });
+        this.addCommand({ id: 'go-to-next-heading', name: '다음 heading으로 이동', icon: 'lucide-square-chevron-down', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'next') });
 
         // [MoveCursor]
         this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
@@ -158,8 +161,9 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'go-to-line-end', name: '커서를 행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor) });
 
         // [Project]
-        this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => this.project.addActiveFileToProject() });
-        this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 내리기', callback: () => this.project.removeActiveFileFromProject() });
+        this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => this.projectIngest.addActiveFileToProject() });
+        this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 내리기', callback: () => this.projectKeeper.removeActiveFileFromProject() });
+        this.addCommand({ id: 'verify-project-integrity', name: '프로젝트 무결성 검증', callback: () => this.projectKeeper.verifyIntegrity() });
 
         // [Properties]
         this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", callback: () => this.properties.insertProperties() });
