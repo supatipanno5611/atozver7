@@ -1,6 +1,5 @@
 import type ATOZVER6Plugin from '../main';
 import { App, Modal, Notice, TFile, TFolder } from 'obsidian';
-import { moment } from 'obsidian';
 import { parseDocument, buildDocument, DATE_PATTERN, INTERNAL_LINK_PATTERN, sortBase } from '../utils';
 
 export class ProjectIngest {
@@ -17,12 +16,6 @@ export class ProjectIngest {
         const target = `${projectPath}/${file.basename}.md`;
         const f = this.plugin.app.vault.getAbstractFileByPath(target);
         return f instanceof TFile ? f : null;
-    }
-
-    private getCopiedUploadTime(copiedFile: TFile): string {
-        const cache = this.plugin.app.metadataCache.getFileCache(copiedFile);
-        const uploadtime = cache?.frontmatter?.['date'];
-        return typeof uploadtime === 'string' ? uploadtime : '';
     }
 
     private computeClosure(start: TFile): TFile[] {
@@ -76,7 +69,6 @@ export class ProjectIngest {
 
         const activeFileCopy = this.getCopiedFile(activeFile, proj.path);
         const isReupload = activeFileCopy instanceof TFile;
-        const existingDates = isReupload ? this.getCopiedUploadTime(activeFileCopy) : '';
 
         const currentCopyCount = this.plugin.app.vault.getMarkdownFiles()
             .filter(f => f.path.startsWith(proj.path + '/')).length;
@@ -90,7 +82,6 @@ export class ProjectIngest {
             this.plugin.app,
             allUploadPaths,
             isReupload,
-            existingDates,
             newFileCount,
             proj.displayName,
             currentCopyCount,
@@ -141,17 +132,14 @@ export class ProjectIngest {
         });
         sortBase(filtered);
         frontmatter['base'] = filtered;
-        frontmatter['title'] = file.basename;
-        frontmatter['date'] = moment().format('YYYY-MM-DD');
 
         await vault.create(targetPath, buildDocument(frontmatter, body));
     }
 
     private async appendUploadLog(files: TFile[], proj: { path: string; displayName: string }): Promise<void> {
         const { vault } = this.plugin.app;
-        const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
         const lines = files.map(f => `- ${f.basename}`).join('\n');
-        const entry = `## ${timestamp} — ${proj.displayName}\n${lines}\n`;
+        const entry = `## ${proj.displayName}\n${lines}\n`;
         const existing = vault.getAbstractFileByPath('log.md');
         if (existing instanceof TFile) {
             await vault.process(existing, (content) => content + '\n' + entry);
@@ -162,10 +150,9 @@ export class ProjectIngest {
 
     private async appendErrorLog(context: string, error: unknown): Promise<void> {
         const { vault } = this.plugin.app;
-        const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
         const message = error instanceof Error ? error.message : String(error);
         const stack = error instanceof Error && error.stack ? `\n\`\`\`\n${error.stack}\n\`\`\`` : '';
-        const entry = `## ${timestamp} — ${context}\n${message}${stack}\n`;
+        const entry = `## ${context}\n${message}${stack}\n`;
         const existing = vault.getAbstractFileByPath('log.md');
         if (existing instanceof TFile) {
             await vault.process(existing, (content) => content + '\n' + entry);
@@ -180,7 +167,6 @@ class ProjectUploadModal extends Modal {
         app: App,
         private allUploadPaths: string[],
         private isReupload: boolean,
-        private existingDates: string,
         private newFileCount: number,
         private projectDisplayName: string,
         private currentCopyCount: number,
@@ -198,20 +184,9 @@ class ProjectUploadModal extends Modal {
         const summaryEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
         summaryEl.setText(`${this.projectDisplayName} (${this.currentCopyCount}) +${this.newFileCount}`);
 
-        infoEl.createEl('div', {
-            text: `업로드 날짜: ${moment().format('YYYY년 M월 D일 HH:mm')}`,
-            cls: 'project-modal-date'
-        });
-
         if (this.isReupload) {
             const reuploadRow = infoEl.createDiv({ cls: 'project-modal-reupload-row' });
             reuploadRow.createEl('span', { text: '재업로드', cls: 'project-modal-badge' });
-            if (this.existingDates) {
-                reuploadRow.createEl('span', {
-                    text: `기존 업로드: ${this.existingDates}`,
-                    cls: 'project-modal-reupload-dates'
-                });
-            }
         }
 
         const pathListEl = contentEl.createDiv({ cls: 'project-modal-path-list' });

@@ -1,6 +1,5 @@
 import type ATOZVER6Plugin from '../main';
 import { App, Modal, Notice, TFile } from 'obsidian';
-import { moment } from 'obsidian';
 
 export class ProjectKeeper {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -15,12 +14,6 @@ export class ProjectKeeper {
     private getAllCopies(projectPath: string): TFile[] {
         return this.plugin.app.vault.getMarkdownFiles()
             .filter(f => f.path.startsWith(projectPath + '/'));
-    }
-
-    private getCopiedUploadTime(copiedFile: TFile): string {
-        const cache = this.plugin.app.metadataCache.getFileCache(copiedFile);
-        const uploadtime = cache?.frontmatter?.['date'];
-        return typeof uploadtime === 'string' ? uploadtime : '';
     }
 
     private buildReverseGraph(projectPath: string): Map<string, Set<string>> {
@@ -73,13 +66,11 @@ export class ProjectKeeper {
         }
 
         const closure = this.computeInClosure(activeFile, proj.path);
-        const existingDates = this.getCopiedUploadTime(activeFile);
         const currentCopyCount = this.getAllCopies(proj.path).length;
 
         new ProjectRemoveModal(
             this.plugin.app,
             closure.map(f => f.path),
-            existingDates,
             proj.displayName,
             currentCopyCount,
             async () => {
@@ -131,13 +122,14 @@ export class ProjectKeeper {
             return;
         }
 
-        const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
         const lines = leaks.map(l =>
             l.resolvedTo === null
                 ? `- [${l.source}] ${l.ref} → (해석 실패)`
                 : `- [${l.source}] ${l.ref} → ${l.resolvedTo}`
         ).join('\n');
-        const entry = `## ${timestamp} — 무결성 검증 (${proj.displayName})\n${leaks.length}건 누수\n${lines}\n`;
+        
+        // 날짜(moment) 제거
+        const entry = `## 무결성 검증 (${proj.displayName})\n${leaks.length}건 누수\n${lines}\n`;
         const { vault } = this.plugin.app;
         const existing = vault.getAbstractFileByPath('log.md');
         if (existing instanceof TFile) {
@@ -150,10 +142,11 @@ export class ProjectKeeper {
 
     private async appendErrorLog(context: string, error: unknown): Promise<void> {
         const { vault } = this.plugin.app;
-        const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
         const message = error instanceof Error ? error.message : String(error);
         const stack = error instanceof Error && error.stack ? `\n\`\`\`\n${error.stack}\n\`\`\`` : '';
-        const entry = `## ${timestamp} — ${context}\n${message}${stack}\n`;
+        
+        // 날짜(moment) 제거
+        const entry = `## 에러 발생 — ${context}\n${message}${stack}\n`;
         const existing = vault.getAbstractFileByPath('log.md');
         if (existing instanceof TFile) {
             await vault.process(existing, (content) => content + '\n' + entry);
@@ -167,7 +160,6 @@ class ProjectRemoveModal extends Modal {
     constructor(
         app: App,
         private closurePaths: string[],
-        private existingDates: string,
         private projectDisplayName: string,
         private currentCopyCount: number,
         private onConfirm: () => Promise<void>,
@@ -183,12 +175,8 @@ class ProjectRemoveModal extends Modal {
         const infoEl = contentEl.createDiv({ cls: 'project-modal-info' });
         const summaryEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
         summaryEl.setText(`${this.projectDisplayName} (${this.currentCopyCount}) -${this.closurePaths.length}`);
-        if (this.existingDates) {
-            infoEl.createEl('div', {
-                text: `업로드: ${this.existingDates}`,
-                cls: 'project-modal-date'
-            });
-        }
+
+        // date 관련 UI 제거됨
 
         const pathListEl = contentEl.createDiv({ cls: 'project-modal-path-list' });
         for (const path of this.closurePaths) {
