@@ -68,18 +68,6 @@ export class ATOZSettingTab extends PluginSettingTab {
                     })
             );
 
-        new Setting(containerEl)
-            .setName('내보내기 경로 (projectExportPath)')
-            .setDesc("‘프로젝트를 외부 경로로 내보내기’ 명령이 .md를 .mdx로 변환해 저장할 운영체제 절대 경로. vault 외부 경로이며 폴더가 미리 존재해야 합니다. 예: 'C:/site/posts'")
-            .addText((t) =>
-                t.setPlaceholder('C:/path/to/export')
-                    .setValue(this.plugin.settings.projectExportPath)
-                    .onChange(async (v) => {
-                        this.plugin.settings.projectExportPath = v.trim();
-                        await this.plugin.saveSettings();
-                    })
-            );
-
         // ── 조각글 ─────────────────────────────────────
         new Setting(containerEl).setName('조각글').setHeading();
 
