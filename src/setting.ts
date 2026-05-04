@@ -17,22 +17,22 @@ export class ATOZSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        new Setting(containerEl).setName('Certain Markdown').setHeading();
+        new Setting(containerEl).setName('특정 마크다운').setHeading();
         new Setting(containerEl)
-            .setName('Certain Markdown path')
-            .setDesc('Vault-relative path opened by the "Open certain Markdown file" command. Example: index.md or folder/note.md.')
+            .setName('특정 마크다운 경로')
+            .setDesc('"특정 마크다운 파일 열기" 명령으로 열 파일의 볼트 기준 경로입니다. 예: index.md, folder/note.md')
             .addText((t) => t
-                .setPlaceholder('Example: index.md')
+                .setPlaceholder('예: index.md')
                 .setValue(this.plugin.settings.CertainMdPath)
                 .onChange(async (v) => {
                     this.plugin.settings.CertainMdPath = v.trim();
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl).setName('Cursor center').setHeading();
+        new Setting(containerEl).setName('커서 중앙 고정').setHeading();
         new Setting(containerEl)
-            .setName('Enable cursor center')
-            .setDesc('Keeps the cursor near the center while editing.')
+            .setName('커서 중앙 고정 사용')
+            .setDesc('편집할 때 커서가 화면 중앙 근처에 유지됩니다.')
             .addToggle((t) => t
                 .setValue(this.plugin.settings.isCursorCenterEnabled)
                 .onChange(async (v) => {
@@ -40,18 +40,18 @@ export class ATOZSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl).setName('Properties').setHeading();
+        new Setting(containerEl).setName('속성').setHeading();
         this.addJsonSetting(
             containerEl,
-            'Default user properties',
-            'JSON object used when inserting frontmatter properties.',
+            '기본 사용자 속성',
+            '프론트매터 속성을 넣을 때 사용할 JSON 객체입니다.',
             'userproperties',
         );
 
-        new Setting(containerEl).setName('Project').setHeading();
+        new Setting(containerEl).setName('프로젝트').setHeading();
         new Setting(containerEl)
-            .setName('Project folder path')
-            .setDesc('Vault-relative folder path used by project commands. Example: _publish.')
+            .setName('프로젝트 폴더 경로')
+            .setDesc('프로젝트 명령에서 사용할 볼트 기준 폴더 경로입니다. 예: _publish')
             .addText((t) => t
                 .setPlaceholder('_publish')
                 .setValue(this.plugin.settings.projectPath)
@@ -60,10 +60,10 @@ export class ATOZSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl).setName('Snippets').setHeading();
+        new Setting(containerEl).setName('스니펫').setHeading();
         new Setting(containerEl)
-            .setName('Snippet trigger')
-            .setDesc('Typing this character opens snippet suggestions.')
+            .setName('스니펫 트리거 문자')
+            .setDesc('이 문자를 입력하면 스니펫 추천이 열립니다.')
             .addText((t) => t
                 .setPlaceholder('@')
                 .setValue(this.plugin.settings.snippetTrigger)
@@ -72,13 +72,13 @@ export class ATOZSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        this.addNumberSetting(containerEl, 'Snippet limit', 'Maximum number of snippet suggestions to show.', 'snippetLimit');
-        this.addLineListSetting(containerEl, 'Snippets list', 'One snippet per line.', 'snippets');
+        this.addNumberSetting(containerEl, '스니펫 표시 개수', '보여줄 스니펫 추천의 최대 개수입니다.', 'snippetLimit');
+        this.addLineListSetting(containerEl, '스니펫 목록', '한 줄에 하나씩 입력합니다.', 'snippets');
 
-        new Setting(containerEl).setName('Symbols').setHeading();
+        new Setting(containerEl).setName('기호').setHeading();
         new Setting(containerEl)
-            .setName('Symbol trigger')
-            .setDesc('Typing this character opens symbol suggestions.')
+            .setName('기호 트리거 문자')
+            .setDesc('이 문자를 입력하면 기호 추천이 열립니다.')
             .addText((t) => t
                 .setPlaceholder('~')
                 .setValue(this.plugin.settings.symbolTrigger)
@@ -87,16 +87,16 @@ export class ATOZSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        this.addNumberSetting(containerEl, 'Symbol limit', 'Maximum number of symbol suggestions to show.', 'symbolLimit');
-        this.addJsonSetting(containerEl, 'Symbols list', 'JSON array of symbol suggestion items.', 'symbols');
-        this.addJsonSetting(containerEl, 'Symbol pairs', 'JSON object used by smart backspace pair removal.', 'symbolPairs');
+        this.addNumberSetting(containerEl, '기호 표시 개수', '보여줄 기호 추천의 최대 개수입니다.', 'symbolLimit');
+        this.addJsonSetting(containerEl, '기호 목록', '기호 추천 항목을 담은 JSON 배열입니다.', 'symbols');
+        this.addJsonSetting(containerEl, '기호 쌍', '스마트 백스페이스로 짝 기호를 지울 때 쓰는 JSON 객체입니다.', 'symbolPairs');
 
-        new Setting(containerEl).setName('Work and later notes').setHeading();
+        new Setting(containerEl).setName('작업 문서와 보관 문서').setHeading();
         new Setting(containerEl)
-            .setName('Work file path')
-            .setDesc('Vault-relative path used by the work note commands.')
+            .setName('작업 문서 경로')
+            .setDesc('작업 문서 명령에서 사용할 볼트 기준 경로입니다.')
             .addText((t) => t
-                .setPlaceholder('Example: work.md')
+                .setPlaceholder('예: work.md')
                 .setValue(this.plugin.settings.workFilePath)
                 .onChange(async (v) => {
                     this.plugin.settings.workFilePath = v.trim();
@@ -104,10 +104,10 @@ export class ATOZSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('Later file path')
-            .setDesc('Vault-relative path used for work note backups.')
+            .setName('보관 문서 경로')
+            .setDesc('보관 문서 명령에서 사용할 볼트 기준 경로입니다.')
             .addText((t) => t
-                .setPlaceholder('Example: later.md')
+                .setPlaceholder('예: later.md')
                 .setValue(this.plugin.settings.laterFilePath)
                 .onChange(async (v) => {
                     this.plugin.settings.laterFilePath = v.trim();
@@ -115,22 +115,22 @@ export class ATOZSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('Work timestamp format')
-            .setDesc('Moment.js format used when appending work note backups.')
+            .setName('작업 시간 형식')
+            .setDesc('작업 문서 백업을 덧붙일 때 사용할 Moment.js 시간 형식입니다.')
             .addText((t) => t
-                .setPlaceholder('Enter a timestamp format')
+                .setPlaceholder('시간 형식을 입력하세요')
                 .setValue(this.plugin.settings.workTimestampFormat)
                 .onChange(async (v) => {
                     this.plugin.settings.workTimestampFormat = v;
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl).setName('Reset').setHeading();
+        new Setting(containerEl).setName('초기화').setHeading();
         new Setting(containerEl)
-            .setName('Reset all settings')
-            .setDesc('Restores all plugin settings to their defaults.')
+            .setName('모든 설정 초기화')
+            .setDesc('플러그인 설정을 모두 기본값으로 되돌립니다.')
             .addButton((btn) => btn
-                .setButtonText('Reset')
+                .setButtonText('초기화')
                 .setWarning()
                 .onClick(() => {
                     void this.resetSettings();
@@ -140,7 +140,7 @@ export class ATOZSettingTab extends PluginSettingTab {
     private async resetSettings(): Promise<void> {
         this.plugin.settings = structuredClone(DEFAULT_SETTINGS);
         await this.plugin.saveSettings();
-        new Notice('Settings reset to defaults.');
+        new Notice('설정을 기본값으로 초기화했습니다.');
         this.display();
     }
 
@@ -208,7 +208,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                         errorEl.setText('');
                     } catch {
-                        errorEl.setText('Invalid JSON. Changes were not saved.');
+                        errorEl.setText('JSON 형식이 올바르지 않아 변경 사항을 저장하지 못했습니다.');
                     }
                 })();
             });
@@ -241,7 +241,18 @@ export class ATOZSettingTab extends PluginSettingTab {
     }
 
     private isStringRecord(value: unknown): value is Record<string, string> {
-        return typeof value === 'object' && value !== null && !Array.isArray(value) &&
-            Object.values(value).every((entry) => typeof entry === 'string');
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+            return false;
+        }
+
+        const record = value as Record<string, unknown>;
+
+        for (const key in record) {
+            if (typeof record[key] !== 'string') {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
