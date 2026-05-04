@@ -1,3 +1,13 @@
+export type FrontmatterValue =
+    | string
+    | number
+    | boolean
+    | null
+    | FrontmatterValue[]
+    | { [key: string]: FrontmatterValue };
+
+export type FrontmatterData = Record<string, FrontmatterValue>;
+
 export interface ATOZSettings {
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
@@ -17,59 +27,58 @@ export interface ATOZSettings {
     workTimestampFormat: string;
 }
 
-export interface SnippetsItem { content: string; }
-export interface SymbolItem { id: string; symbol: string; closing?: string; }
-export interface SwitcherItem { display: string; path: string; }
+export interface SnippetsItem {
+    content: string;
+}
+
+export interface SymbolItem {
+    id: string;
+    symbol: string;
+    closing?: string;
+}
+
+export interface SwitcherItem {
+    display: string;
+    path: string;
+}
+
 export interface ParsedDocument {
-    frontmatter: Record<string, any>;
+    frontmatter: FrontmatterData;
     body: string;
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
-    // CertainMd
     CertainMdPath: '',
-
-    // Cursor Center
     isCursorCenterEnabled: false,
-
-    // Properties
     userproperties: {},
-
-    // Project
     projectPath: '',
-
-    // Snippets
-    snippetTrigger: "@",
+    snippetTrigger: '@',
     snippetLimit: 5,
-    snippets: ["하나", "둘", "셋"],
+    snippets: [],
     recentSnippets: {},
-    
-    // Symbols
-    symbolTrigger: "~",
+    symbolTrigger: '~',
     symbolLimit: 5,
     symbols: [
-        { id: "\"", symbol: "“", closing: "”" },
-        { id: "'", symbol: "‘", closing: "’" },
-        { id: "...", symbol: "⋯" },
-        { id: "-", symbol: "—" },
-        { id: ",", symbol: "·" },
-        { id: ">>", symbol: "”" },
-        { id: ">", symbol: "’" },
-        { id: "낫", symbol: "｢", closing: "｣" },
-        { id: "end>", symbol: "｣" },
-        { id: "겹", symbol: "『", closing: "』" },
-        { id: "end>>", symbol: "』" },
+        { id: '"', symbol: '"', closing: '"' },
+        { id: "'", symbol: "'", closing: "'" },
+        { id: '...', symbol: '…' },
+        { id: '-', symbol: '—' },
+        { id: ',', symbol: '‚' },
+        { id: '>>', symbol: '《', closing: '》' },
+        { id: 'end>', symbol: '》' },
+        { id: '[[', symbol: '「', closing: '」' },
+        { id: 'end]]', symbol: '」' },
+        { id: '(', symbol: '（', closing: '）' },
+        { id: 'end)', symbol: '）' },
     ],
     symbolPairs: {
-        "“": "”",
-        "‘": "’",
-        "｢": "｣",
-        "『": "』"
+        '“': '”',
+        '‘': '’',
+        '《': '》',
+        '（': '）',
     },
     recentSymbols: {},
-        
-    // Work
     workFilePath: 'work.md',
     laterFilePath: 'later.md',
-    workTimestampFormat: 'MM/DD HH:mm:ss'
+    workTimestampFormat: 'MM/DD HH:mm:ss',
 };

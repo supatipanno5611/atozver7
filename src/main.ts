@@ -1,23 +1,24 @@
-import { Plugin, Editor, Notice, TFile } from 'obsidian';
-import { ATOZSettings, DEFAULT_SETTINGS } from './types';
-import { ATOZSettingTab } from './setting';
-import { SelectionFeature } from './features/Selection';
-import { MoveCursorFeature } from './features/MoveCursor';
-import { ExecutesFeature } from './features/Executes';
+import { Editor, Notice, Plugin, TFile } from 'obsidian';
 import { CertainMdFeature } from './features/CertainMd';
 import { CursorCenterFeature } from './features/CursorCenter';
-import { HeadingNavigaterFeature } from './features/HeadingNavigater';
-import { PropertiesFeature } from './features/Properties';
 import { CutCopyFeature } from './features/CutCopy';
-import { CycleTabFeature } from './features/CycleTab';
-import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
-import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
-import { WorkFeature } from './features/Work';
 import { CutCreateNewMdFeature } from './features/CutCreateNewMd';
-import { DATE_PATTERN, URL_PATTERN, INTERNAL_LINK_PATTERN } from './utils';
+import { CycleTabFeature } from './features/CycleTab';
+import { ExecutesFeature } from './features/Executes';
+import { HeadingNavigaterFeature } from './features/HeadingNavigater';
+import { MobileFeature } from './features/Mobile';
+import { MoveCursorFeature } from './features/MoveCursor';
 import { ProjectIngest } from './features/ProjectIngest';
 import { ProjectKeeper } from './features/ProjectKeeper';
-import { MobileFeature } from './features/Mobile';
+import { PropertiesFeature } from './features/Properties';
+import { SelectionFeature } from './features/Selection';
+import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
+import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
+import { TimestampFeature } from './features/Timestamp';
+import { WorkFeature } from './features/Work';
+import { ATOZSettingTab } from './setting';
+import { ATOZSettings, DEFAULT_SETTINGS } from './types';
+import { DATE_PATTERN, INTERNAL_LINK_PATTERN, URL_PATTERN } from './utils';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings!: ATOZSettings;
@@ -37,13 +38,14 @@ export default class ATOZVER6Plugin extends Plugin {
     projectIngest!: ProjectIngest;
     projectKeeper!: ProjectKeeper;
     mobile!: MobileFeature;
+    timestamp!: TimestampFeature;
 
     baseCandidates: string[] = [];
-
     private saveTimer: number | null = null;
 
     async onload() {
         await this.loadSettings();
+
         this.selection = new SelectionFeature(this);
         this.moveCursor = new MoveCursorFeature(this);
         this.executes = new ExecutesFeature(this);
@@ -60,6 +62,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.projectIngest = new ProjectIngest(this);
         this.projectKeeper = new ProjectKeeper(this);
         this.mobile = new MobileFeature(this);
+        this.timestamp = new TimestampFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -79,14 +82,15 @@ export default class ATOZVER6Plugin extends Plugin {
         if (this.saveTimer !== null) {
             window.clearTimeout(this.saveTimer);
             this.saveTimer = null;
-            this.saveSettings();
+            void this.saveSettings();
         }
         this.mobile.uninstall();
     }
 
     async loadSettings() {
-        const loadedData = await this.loadData();
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
+        const loadedData: unknown = await this.loadData();
+        const data = typeof loadedData === 'object' && loadedData !== null ? loadedData : {};
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, data) as ATOZSettings;
     }
 
     async saveSettings() {
@@ -96,137 +100,133 @@ export default class ATOZVER6Plugin extends Plugin {
     debouncedSave() {
         if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
         this.saveTimer = window.setTimeout(() => {
-            this.saveSettings();
+            void this.saveSettings();
             this.saveTimer = null;
         }, 300);
     }
 
     collectBaseCandidates(): string[] {
         const candidates = new Set<string>();
+
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
-            const base = cache?.frontmatter?.['base'];
-            if (Array.isArray(base)) {
-                for (const v of base) {
-                    if (
-                        typeof v === 'string' &&
-                        !DATE_PATTERN.test(v) &&
-                        !URL_PATTERN.test(v) &&
-                        !INTERNAL_LINK_PATTERN.test(v)
-                    ) {
-                        candidates.add(v);
-                    }
+            const frontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
+            const base = frontmatter?.base;
+            if (!Array.isArray(base)) continue;
+
+            for (const value of base) {
+                if (
+                    typeof value === 'string' &&
+                    !DATE_PATTERN.test(value) &&
+                    !URL_PATTERN.test(value) &&
+                    !INTERNAL_LINK_PATTERN.test(value)
+                ) {
+                    candidates.add(value);
                 }
             }
         }
+
         return [...candidates];
     }
 
     registerRibbonIcon() {
-        this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => this.work.openWorkFile());
-        this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => this.work.openLaterFile());
+        this.addRibbonIcon('lucide-file-pen', 'Open work note', () => void this.work.openWorkFile());
+        this.addRibbonIcon('lucide-inbox', 'Open later note', () => void this.work.openLaterFile());
     }
 
     registerCommands() {
-        // [CertainMd]
-        this.addCommand({ id: 'open-certain-md', name: '특정 마크다운 파일 열기', callback: () => this.certainMd.openCertainMdFile() });
+        this.addCommand({ id: 'open-certain-md', name: 'Open certain Markdown file', callback: () => void this.certainMd.openCertainMdFile() });
+        this.addCommand({ id: 'toggle-cursor-center', name: 'Toggle cursor center', callback: () => this.cursorCenter.toggleCursorCenter() });
 
-        // [CursorCenter]
-        this.addCommand({ id: 'toggle-cursor-center', name: '커서 중앙 유지 토글', callback: () => this.cursorCenter.toggleCursorCenter() });
+        this.addCommand({ id: 'copy-all-document', name: 'Copy whole document', editorCallback: (editor) => this.cutCopy.copyAll(editor) });
+        this.addCommand({ id: 'cut-all-document', name: 'Cut whole document', editorCallback: (editor: Editor) => this.cutCopy.cutAll(editor) });
+        this.addCommand({ id: 'cut-to-clipboard', name: 'Cut to clipboard', icon: 'lucide-scissors', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, true) });
+        this.addCommand({ id: 'copy-to-clipboard', name: 'Copy to clipboard', icon: 'copy', editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, false) });
 
-        // [CutCopy]
-        this.addCommand({ id: 'copy-all-document', name: '문서 전체 복사', editorCallback: (editor) => this.cutCopy.copyAll(editor) });
-        this.addCommand({ id: 'cut-all-document', name: '문서 전체 잘라내기', editorCallback: (editor: Editor) => this.cutCopy.cutAll(editor) });
-        this.addCommand({ id: "cut-to-clipboard", name: "잘라내기", icon: "lucide-scissors", hotkeys: [{ modifiers: ["Mod"], key: "X" }], editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, true) });
-        this.addCommand({ id: "copy-to-clipboard", name: "복사하기", icon: "copy", hotkeys: [{ modifiers: ["Mod"], key: "C" }], editorCallback: (editor) => this.cutCopy.handleCutCopy(editor, false) });
+        this.addCommand({ id: 'cut-and-create-new-md', name: 'Cut and create note', icon: 'lucide-file-input', editorCallback: (editor: Editor) => void this.cutCreateNewMd.cutAndCreateNewMd(editor) });
+        this.addCommand({ id: 'cycle-tabs', name: 'Cycle tabs', callback: () => this.cycleTab.cycleAllTabs() });
 
-        // [CutCreateNewMd]
-        this.addCommand({ id: 'cut-and-create-new-md', name: '내용을 잘라내어 새 노트 만들기', icon: 'lucide-file-input', editorCallback: (editor: Editor) => this.cutCreateNewMd.cutAndCreateNewMd(editor) });
+        this.addCommand({ id: 'execute-delete-paragraph', name: 'Delete paragraph', icon: 'lucide-trash-2', callback: () => this.executes.executeDeleteParagraph() });
+        this.addCommand({ id: 'focus-root-leaf', name: 'Focus main editor', callback: () => void this.executes.focusRootLeaf() });
 
-        // [CycleTab]
-        this.addCommand({ id: 'cycle-tabs', name: '탭 순환', callback: () => this.cycleTab.cycleAllTabs() });
+        this.addCommand({ id: 'go-to-previous-heading', name: 'Go to previous heading', icon: 'lucide-square-chevron-up', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'prev') });
+        this.addCommand({ id: 'go-to-next-heading', name: 'Go to next heading', icon: 'lucide-square-chevron-down', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'next') });
 
-        // [Executes]
-        this.addCommand({ id: 'execute-delete-paragraph', name: '단락 제거', icon: 'lucide-trash-2', hotkeys: [{ modifiers: ["Mod"], key: "Delete" }], callback: () => this.executes.executeDeleteParagraph() });
-        this.addCommand({ id: 'focus-root-leaf', name: '메인 에디터에 포커스', callback: () => this.executes.focusRootLeaf() });
+        this.addCommand({ id: 'move-cursor-to-end', name: 'Move cursor to document end', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
+        this.addCommand({ id: 'move-cursor-to-start', name: 'Move cursor to document start', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToStart(editor) });
+        this.addCommand({ id: 'go-to-line-start', name: 'Move cursor to line start', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor) });
+        this.addCommand({ id: 'go-to-line-end', name: 'Move cursor to line end', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor) });
 
-        // [HeadingNavigater]
-        this.addCommand({ id: 'go-to-previous-heading', name: '이전 heading으로 이동', icon: 'lucide-square-chevron-up', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'prev') });
-        this.addCommand({ id: 'go-to-next-heading', name: '다음 heading으로 이동', icon: 'lucide-square-chevron-down', editorCallback: (editor, view) => this.headingNavigater.moveHeading(editor, view, 'next') });
+        this.addCommand({ id: 'add-file-to-project', name: 'Add file to project', callback: () => void this.projectIngest.addActiveFileToProject() });
+        this.addCommand({ id: 'remove-file-from-project', name: 'Remove file from project', callback: () => void this.projectKeeper.removeActiveFileFromProject() });
+        this.addCommand({ id: 'verify-project-integrity', name: 'Verify project integrity', callback: () => void this.projectKeeper.verifyIntegrity() });
 
-        // [MoveCursor]
-        this.addCommand({ id: 'move-cursor-to-end', name: '커서를 문서 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToEnd(editor) });
-        this.addCommand({ id: 'move-cursor-to-start', name: '커서를 문서 처음으로 이동', editorCallback: (editor: Editor) => this.moveCursor.moveCursorToStart(editor) });
-        this.addCommand({ id: 'go-to-line-start', name: '커서를 행 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor) });
-        this.addCommand({ id: 'go-to-line-end', name: '커서를 행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor) });
-
-        // [Project]
-        this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => this.projectIngest.addActiveFileToProject() });
-        this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 내리기', callback: () => this.projectKeeper.removeActiveFileFromProject() });
-        this.addCommand({ id: 'verify-project-integrity', name: '프로젝트 무결성 검증', callback: () => this.projectKeeper.verifyIntegrity() });
-
-        // [Properties]
-        this.addCommand({ id: "insert-properties", name: "속성 삽입", icon: "lucide-table-of-contents", callback: () => this.properties.insertProperties() });
-        this.addCommand({ id: "lint-properties", name: "속성 정리", icon: "lucide-list-x", callback: () => this.properties.lintProperties() });
+        this.addCommand({ id: 'insert-properties', name: 'Insert properties', icon: 'lucide-table-of-contents', callback: () => void this.properties.insertProperties() });
+        this.addCommand({ id: 'lint-properties', name: 'Lint properties', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
         this.addCommand({
             id: 'refresh-base-candidates',
-            name: 'base 후보 캐시 재수집',
+            name: 'Refresh base candidates',
             callback: () => {
                 this.baseCandidates = this.collectBaseCandidates();
-                new Notice('base 후보를 재수집했습니다.');
-            }
+                new Notice('Base candidates refreshed.');
+            },
         });
 
-        // [Selection]
-        this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: "lucide-chevrons-left", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowLeft" }], editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
-        this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: "lucide-chevrons-right", hotkeys: [{ modifiers: ["Mod", "Shift"], key: "ArrowRight" }], editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
+        this.addCommand({ id: 'expand-selection-left-end', name: 'Expand selection to line start', icon: 'lucide-chevrons-left', editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
+        this.addCommand({ id: 'expand-selection-right-end', name: 'Expand selection to line end', icon: 'lucide-chevrons-right', editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
 
-        // [Snippets]
-        this.addCommand({ id: 'add-to-snippets', name: '조각글 추가', icon: 'lucide-clipboard-plus', editorCallback: (editor: Editor) => { this.snippets.addSnippet(editor.getSelection()); } });
-        this.addCommand({ id: 'remove-from-snippets', name: '조각글 제거', icon: 'lucide-clipboard-minus', editorCallback: (editor: Editor) => { this.snippets.removeSnippet(editor.getSelection()); } });
+        this.addCommand({ id: 'merge-timestamp-lines', name: 'Merge timestamp lines', editorCallback: (editor: Editor) => this.timestamp.mergeTimestampLines(editor) });
 
-        // [Work]
-        this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => this.work.openWorkFile() });
-        this.addCommand({ id: 'open-later-file', name: '보관 문서 열기', callback: () => this.work.openLaterFile() });
-        this.addCommand({ id: 'close-all-tabs', name: '모든 탭 닫기', callback: () => this.work.cleanupTabs() });
-        this.addCommand({ id: 'backup-and-clear-work', name: '작업 문서 정리', icon: 'lucide-brush-cleaning', callback: async () => {
-            const result = await this.work.readWorkContent();
-            if (!result) return;
-            if (result.content.trim()) {
-                await this.work.backupAndClear(result.file, result.content);
-            }
-        }});
+        this.addCommand({ id: 'add-to-snippets', name: 'Add snippet', icon: 'lucide-clipboard-plus', editorCallback: (editor: Editor) => { void this.snippets.addSnippet(editor.getSelection()); } });
+        this.addCommand({ id: 'remove-from-snippets', name: 'Remove snippet', icon: 'lucide-clipboard-minus', editorCallback: (editor: Editor) => { void this.snippets.removeSnippet(editor.getSelection()); } });
+
+        this.addCommand({ id: 'open-work-file', name: 'Open work note', callback: () => void this.work.openWorkFile() });
+        this.addCommand({ id: 'open-later-file', name: 'Open later note', callback: () => void this.work.openLaterFile() });
+        this.addCommand({ id: 'close-all-tabs', name: 'Close all tabs', callback: () => void this.work.cleanupTabs() });
+        this.addCommand({
+            id: 'backup-and-clear-work',
+            name: 'Backup and clear work note',
+            icon: 'lucide-brush-cleaning',
+            callback: () => void this.backupAndClearWork(),
+        });
+    }
+
+    private async backupAndClearWork(): Promise<void> {
+        const result = await this.work.readWorkContent();
+        if (!result || !result.content.trim()) return;
+        await this.work.backupAndClear(result.file, result.content);
     }
 
     registerEvents() {
-        // [CursorCenter]
         this.registerEvent(
             this.app.workspace.on('editor-change', (editor) => {
                 if (this.settings.isCursorCenterEnabled) {
                     this.cursorCenter.scrollToCursorCenter(editor);
                 }
-            })
+            }),
         );
 
-        // [CutCopy] file menu
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
                 menu.addItem((item) => {
-                    item.setTitle("문서 전체 복사").setIcon("copy").onClick(async () => {
-                        if (file instanceof TFile) {
-                            const content = await this.app.vault.read(file);
-                            await navigator.clipboard.writeText(content);
-                            new Notice(`${file.name} 문서 전체가 복사되었습니다.`);
-                        }
-                    });
+                    item.setTitle('Copy whole document')
+                        .setIcon('copy')
+                        .onClick(() => {
+                            void this.copyWholeDocument(file);
+                        });
                 });
-            })
+            }),
         );
-        
-        // [Symbols] Backspace Event
+
         this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
             this.symbols.handleSmartBackspace(evt);
         }, true);
     }
-}
 
+    private async copyWholeDocument(file: unknown): Promise<void> {
+        if (!(file instanceof TFile)) return;
+        const content = await this.app.vault.read(file);
+        await navigator.clipboard.writeText(content);
+        new Notice(`Copied ${file.name}.`);
+    }
+}

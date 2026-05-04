@@ -1,23 +1,25 @@
+import { App, Editor, Modal, Notice, Setting, TFile, normalizePath } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
-import { App, Editor, MarkdownView, Modal, Notice, Setting, normalizePath } from 'obsidian';
 
 export class CutCreateNewMdFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
-    async cutAndCreateNewMd(editor: Editor) {
-        // 1. 내용 추출 (선택 범위 우선, 없으면 전체)
+    async cutAndCreateNewMd(editor: Editor): Promise<void> {
         const hasSelection = editor.somethingSelected();
         let contentToMove: string;
         let startLine: number;
         let endLine: number;
 
         if (hasSelection) {
-            const sel = editor.listSelections()[0];
-            if (!sel) return;
-            startLine = Math.min(sel.anchor.line, sel.head.line);
-            endLine = Math.max(sel.anchor.line, sel.head.line);
+            const selection = editor.listSelections()[0];
+            if (!selection) return;
+
+            startLine = Math.min(selection.anchor.line, selection.head.line);
+            endLine = Math.max(selection.anchor.line, selection.head.line);
             const lines: string[] = [];
-            for (let i = startLine; i <= endLine; i++) lines.push(editor.getLine(i));
+            for (let index = startLine; index <= endLine; index++) {
+                lines.push(editor.getLine(index));
+            }
             contentToMove = lines.join('\n');
         } else {
             startLine = 0;
@@ -25,95 +27,99 @@ export class CutCreateNewMdFeature {
             contentToMove = editor.getValue();
         }
 
-        // 2. 빈 내용 가드
         if (!contentToMove.trim()) {
-            new Notice('이동할 내용이 없습니다.');
+            new Notice('Nothing to move.');
             return;
         }
 
-        // 3. 원본 파일 참조 저장
         const originalFile = this.plugin.app.workspace.getActiveFile();
         if (!originalFile) return;
 
         const isFullContent = !hasSelection;
-
-        // 4. 모달 열기
-        new CutAndCreateModal(this.plugin.app, async (filename: string) => {
-            try {
-                const newPath = normalizePath(`${filename}.md`);
-
-                // 5. vault 루트에 contentToMove를 내용으로 파일 생성
-                const newFile = await this.plugin.app.vault.create(newPath, contentToMove);
-
-                // 6. 현재 탭을 새 파일로 교체
-                const leaf = this.plugin.app.workspace.getLeaf(false);
-                await leaf.openFile(newFile);
-                this.plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
-
-                // 7. 원본에서 내용 삭제
-                if (isFullContent) {
-                    await this.plugin.app.vault.modify(originalFile, '');
-                } else {
-                    await this.plugin.app.vault.process(originalFile, (data) => {
-                        const lines = data.split('\n');
-                        lines.splice(startLine, endLine - startLine + 1);
-                        return lines.join('\n');
-                    });
-                }
-
-            } catch (error) {
-                console.error(error);
-                new Notice('새 노트 생성 중 오류가 발생했습니다.');
-            }
+        new CutAndCreateModal(this.plugin.app, (filename) => {
+            void this.createNoteFromSelection(filename, contentToMove, originalFile, isFullContent, startLine, endLine);
         }).open();
+    }
+
+    private async createNoteFromSelection(
+        filename: string,
+        contentToMove: string,
+        originalFile: TFile,
+        isFullContent: boolean,
+        startLine: number,
+        endLine: number,
+    ): Promise<void> {
+        try {
+            const newPath = normalizePath(`${filename}.md`);
+            const newFile = await this.plugin.app.vault.create(newPath, contentToMove);
+
+            const leaf = this.plugin.app.workspace.getLeaf(false);
+            await leaf.openFile(newFile);
+            this.plugin.app.workspace.setActiveLeaf(leaf, { focus: true });
+
+            if (isFullContent) {
+                await this.plugin.app.vault.modify(originalFile, '');
+                return;
+            }
+
+            await this.plugin.app.vault.process(originalFile, (data) => {
+                const lines = data.split('\n');
+                lines.splice(startLine, endLine - startLine + 1);
+                return lines.join('\n');
+            });
+        } catch (error) {
+            console.error(error);
+            new Notice('Failed to create note.');
+        }
     }
 }
 
 export class CutAndCreateModal extends Modal {
-    private onSubmit: (filename: string) => void;
-    private inputEl: HTMLInputElement;
-    private errorEl: HTMLElement;
+    private inputEl!: HTMLInputElement;
+    private errorEl!: HTMLElement;
 
-    constructor(app: App, onSubmit: (filename: string) => void) {
+    constructor(
+        app: App,
+        private onSubmit: (filename: string) => void,
+    ) {
         super(app);
-        this.onSubmit = onSubmit;
         this.modalEl.addClass('prompt');
     }
 
-    onOpen() {
+    onOpen(): void {
         const { contentEl } = this;
         contentEl.empty();
-        this.titleEl.setText('새 노트 만들기');
+        this.titleEl.setText('Create note');
 
-        new Setting(contentEl)
-            .addText(text => {
-                this.inputEl = text.inputEl;
-                text.setPlaceholder('파일명');
-                text.inputEl.addEventListener('input', () => this.clearError());
-                setTimeout(() => text.inputEl.focus(), 0);
-            });
+        new Setting(contentEl).addText((text) => {
+            this.inputEl = text.inputEl;
+            text.setPlaceholder('File name');
+            text.inputEl.addEventListener('input', () => this.clearError());
+            window.setTimeout(() => text.inputEl.focus(), 0);
+        });
 
         this.errorEl = contentEl.createEl('div', { cls: 'cut-create-error' });
-
         this.scope.register([], 'Enter', () => {
             this.handleSubmit();
             return false;
         });
     }
 
-    private handleSubmit() {
+    private handleSubmit(): void {
         const raw = this.inputEl.value.trim();
 
         if (!raw) {
-            this.showError('파일명을 입력해주세요.');
+            this.showError('Enter a file name.');
             return;
         }
+
         if (/[\\/:*?"<>|]/.test(raw)) {
-            this.showError('사용할 수 없는 문자가 포함되어 있습니다: \\ / : * ? " < > |');
+            this.showError('File name contains invalid characters.');
             return;
         }
+
         if (this.app.vault.getAbstractFileByPath(normalizePath(`${raw}.md`))) {
-            this.showError('같은 이름의 파일이 이미 존재합니다.');
+            this.showError('A file with that name already exists.');
             return;
         }
 
@@ -121,14 +127,16 @@ export class CutAndCreateModal extends Modal {
         this.onSubmit(raw);
     }
 
-    private showError(msg: string) {
-        this.errorEl.setText(msg);
+    private showError(message: string): void {
+        this.errorEl.setText(message);
         this.errorEl.addClass('is-visible');
     }
 
-    private clearError() {
+    private clearError(): void {
         this.errorEl.removeClass('is-visible');
     }
 
-    onClose() { this.contentEl.empty(); }
+    onClose(): void {
+        this.contentEl.empty();
+    }
 }

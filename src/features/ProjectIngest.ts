@@ -1,6 +1,6 @@
-import type ATOZVER6Plugin from '../main';
 import { App, Modal, Notice, TFile, TFolder } from 'obsidian';
-import { parseDocument, buildDocument, DATE_PATTERN, INTERNAL_LINK_PATTERN, sortBase } from '../utils';
+import type ATOZVER6Plugin from '../main';
+import { DATE_PATTERN, INTERNAL_LINK_PATTERN, buildDocument, parseDocument, sortBase } from '../utils';
 
 export class ProjectIngest {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -8,14 +8,13 @@ export class ProjectIngest {
     private getSettings(): { path: string; displayName: string } | null {
         const { projectPath } = this.plugin.settings;
         if (!projectPath) return null;
-        const displayName = projectPath.split('/').pop() ?? projectPath;
-        return { path: projectPath, displayName };
+        return { path: projectPath, displayName: projectPath.split('/').pop() ?? projectPath };
     }
 
     private getCopiedFile(file: TFile, projectPath: string): TFile | null {
         const target = `${projectPath}/${file.basename}.md`;
-        const f = this.plugin.app.vault.getAbstractFileByPath(target);
-        return f instanceof TFile ? f : null;
+        const found = this.plugin.app.vault.getAbstractFileByPath(target);
+        return found instanceof TFile ? found : null;
     }
 
     private computeClosure(start: TFile): TFile[] {
@@ -24,8 +23,8 @@ export class ProjectIngest {
         const queue: TFile[] = [start];
 
         while (queue.length > 0) {
-            const file = queue.shift()!;
-            if (visited.has(file.path)) continue;
+            const file = queue.shift();
+            if (!file || visited.has(file.path)) continue;
             visited.add(file.path);
             if (file.extension !== 'md') continue;
             result.push(file);
@@ -39,44 +38,50 @@ export class ProjectIngest {
                 }
             }
         }
+
         return result;
     }
 
     async addActiveFileToProject(): Promise<void> {
         const proj = this.getSettings();
-        if (!proj) { new Notice('프로젝트 경로를 설정에서 지정해주세요.'); return; }
+        if (!proj) {
+            new Notice('Set a project path first.');
+            return;
+        }
 
         const activeFile = this.plugin.app.workspace.getActiveFile();
-        if (!activeFile) { new Notice('활성 파일이 없습니다.'); return; }
-        if (activeFile.extension !== 'md') { new Notice('마크다운 파일이 아닙니다.'); return; }
-
-        if (activeFile.path.startsWith(proj.path + '/')) {
-            new Notice('보관소 안의 파일입니다. 올리기는 원본에서만 가능합니다.');
+        if (!activeFile) {
+            new Notice('No active file.');
+            return;
+        }
+        if (activeFile.extension !== 'md') {
+            new Notice('Only Markdown files are supported');
+            return;
+        }
+        if (activeFile.path.startsWith(`${proj.path}/`)) {
+            new Notice('The active file is already inside the project folder.');
             return;
         }
 
         const raw = await this.plugin.app.vault.read(activeFile);
-        const { frontmatter } = parseDocument(raw);
-        if (Object.keys(frontmatter).length === 0) { new Notice('프론트매터가 없습니다.'); return; }
+        if (Object.keys(parseDocument(raw).frontmatter).length === 0) {
+            new Notice('Frontmatter is required.');
+            return;
+        }
 
         if (!(this.plugin.app.vault.getAbstractFileByPath(proj.path) instanceof TFolder)) {
-            new Notice('대상 폴더가 없습니다.');
+            new Notice('Project folder not found.');
             return;
         }
 
         const closure = this.computeClosure(activeFile);
-        const allUploadPaths = closure.map(f => `${proj.path}/${f.basename}.md`);
-
-        const activeFileCopy = this.getCopiedFile(activeFile, proj.path);
-        const isReupload = activeFileCopy instanceof TFile;
-
+        const allUploadPaths = closure.map((file) => `${proj.path}/${file.basename}.md`);
+        const isReupload = this.getCopiedFile(activeFile, proj.path) instanceof TFile;
         const currentCopyCount = this.plugin.app.vault.getMarkdownFiles()
-            .filter(f => f.path.startsWith(proj.path + '/')).length;
-
-        let newFileCount = 0;
-        for (const f of closure) {
-            if (!(this.getCopiedFile(f, proj.path) instanceof TFile)) newFileCount++;
-        }
+            .filter((file) => file.path.startsWith(`${proj.path}/`)).length;
+        const newFileCount = closure
+            .filter((file) => !(this.getCopiedFile(file, proj.path) instanceof TFile))
+            .length;
 
         new ProjectUploadModal(
             this.plugin.app,
@@ -85,80 +90,75 @@ export class ProjectIngest {
             newFileCount,
             proj.displayName,
             currentCopyCount,
-            async () => {
-                await this.executeUpload(closure, proj, isReupload);
-            }
+            () => {
+                void this.executeUpload(closure, proj, isReupload);
+            },
         ).open();
     }
 
     private async executeUpload(
         closure: TFile[],
         proj: { path: string; displayName: string },
-        isReupload: boolean
+        isReupload: boolean,
     ): Promise<void> {
         try {
             for (const file of closure) {
-                const targetPath = `${proj.path}/${file.basename}.md`;
-                await this.createProcessedCopy(file, targetPath);
+                await this.createProcessedCopy(file, `${proj.path}/${file.basename}.md`);
             }
             await this.appendUploadLog(closure, proj);
-            new Notice(`${closure.length}개 파일을 ${proj.displayName}에 ${isReupload ? '업데이트했습니다' : '추가했습니다'}.`);
+            new Notice(`${closure.length} file(s) ${isReupload ? 'updated in' : 'added to'} ${proj.displayName}.`);
         } catch (error) {
-            console.error('executeUpload 실패:', error);
+            console.error('executeUpload failed:', error);
             await this.appendErrorLog('executeUpload', error);
-            new Notice('업로드 중 오류가 발생했습니다. log.md를 확인해주세요.');
+            new Notice('Upload failed. Check log.md.');
         }
     }
 
     private async createProcessedCopy(file: TFile, targetPath: string): Promise<void> {
-        const { vault } = this.plugin.app;
+        const { vault, fileManager } = this.plugin.app;
 
         const existing = vault.getAbstractFileByPath(targetPath);
         if (existing instanceof TFile) {
-            await vault.delete(existing);
-        } else if (await vault.adapter.exists(targetPath)) {
-            await vault.adapter.remove(targetPath);
+            await fileManager.trashFile(existing);
         }
 
         const raw = await vault.read(file);
         const { frontmatter, body } = parseDocument(raw);
-        const base: unknown[] = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-        const filtered = base.filter(v => {
-            if (typeof v !== 'string') return true;
-            if (DATE_PATTERN.test(v)) return false;
-            if (v.startsWith('.')) return false;
-            if (INTERNAL_LINK_PATTERN.test(v)) return false;
+        const base = Array.isArray(frontmatter.base) ? [...frontmatter.base] : [];
+        const filtered = base.filter((value) => {
+            if (typeof value !== 'string') return true;
+            if (DATE_PATTERN.test(value)) return false;
+            if (value.startsWith('.')) return false;
+            if (INTERNAL_LINK_PATTERN.test(value)) return false;
             return true;
         });
-        sortBase(filtered);
-        frontmatter['base'] = filtered;
 
+        sortBase(filtered);
+        frontmatter.base = filtered;
         await vault.create(targetPath, buildDocument(frontmatter, body));
     }
 
     private async appendUploadLog(files: TFile[], proj: { path: string; displayName: string }): Promise<void> {
-        const { vault } = this.plugin.app;
-        const lines = files.map(f => `- ${f.basename}`).join('\n');
+        const lines = files.map((file) => `- ${file.basename}`).join('\n');
         const entry = `## ${proj.displayName}\n${lines}\n`;
-        const existing = vault.getAbstractFileByPath('log.md');
+        const existing = this.plugin.app.vault.getAbstractFileByPath('log.md');
         if (existing instanceof TFile) {
-            await vault.process(existing, (content) => content + '\n' + entry);
-        } else {
-            await vault.create('log.md', entry);
+            await this.plugin.app.vault.process(existing, (content) => `${content}\n${entry}`);
+            return;
         }
+        await this.plugin.app.vault.create('log.md', entry);
     }
 
     private async appendErrorLog(context: string, error: unknown): Promise<void> {
-        const { vault } = this.plugin.app;
         const message = error instanceof Error ? error.message : String(error);
         const stack = error instanceof Error && error.stack ? `\n\`\`\`\n${error.stack}\n\`\`\`` : '';
         const entry = `## ${context}\n${message}${stack}\n`;
-        const existing = vault.getAbstractFileByPath('log.md');
+        const existing = this.plugin.app.vault.getAbstractFileByPath('log.md');
         if (existing instanceof TFile) {
-            await vault.process(existing, (content) => content + '\n' + entry);
-        } else {
-            await vault.create('log.md', entry);
+            await this.plugin.app.vault.process(existing, (content) => `${content}\n${entry}`);
+            return;
         }
+        await this.plugin.app.vault.create('log.md', entry);
     }
 }
 
@@ -170,23 +170,22 @@ class ProjectUploadModal extends Modal {
         private newFileCount: number,
         private projectDisplayName: string,
         private currentCopyCount: number,
-        private onConfirm: () => Promise<void>,
+        private onConfirm: () => void,
     ) {
         super(app);
     }
 
-    onOpen() {
+    onOpen(): void {
         const { contentEl } = this;
         contentEl.empty();
-        this.titleEl.setText(this.isReupload ? '재업로드' : '프로젝트에 추가');
+        this.titleEl.setText(this.isReupload ? 'Re-upload project files' : 'Add files to project');
 
         const infoEl = contentEl.createDiv({ cls: 'project-modal-info' });
-        const summaryEl = infoEl.createDiv({ cls: 'project-modal-summary-count' });
-        summaryEl.setText(`${this.projectDisplayName} (${this.currentCopyCount}) +${this.newFileCount}`);
+        infoEl.createDiv({ cls: 'project-modal-summary-count', text: `${this.projectDisplayName} (${this.currentCopyCount}) +${this.newFileCount}` });
 
         if (this.isReupload) {
             const reuploadRow = infoEl.createDiv({ cls: 'project-modal-reupload-row' });
-            reuploadRow.createEl('span', { text: '재업로드', cls: 'project-modal-badge' });
+            reuploadRow.createEl('span', { text: 'Re-upload', cls: 'project-modal-badge' });
         }
 
         const pathListEl = contentEl.createDiv({ cls: 'project-modal-path-list' });
@@ -195,15 +194,17 @@ class ProjectUploadModal extends Modal {
         }
 
         const btnEl = contentEl.createDiv({ cls: 'project-modal-buttons' });
-        const cancelBtn = btnEl.createEl('button', { text: '취소' });
-        const confirmBtn = btnEl.createEl('button', { text: '업로드', cls: 'mod-cta' });
+        const cancelBtn = btnEl.createEl('button', { text: 'Cancel' });
+        const confirmBtn = btnEl.createEl('button', { text: 'Upload', cls: 'mod-cta' });
 
-        confirmBtn.addEventListener('click', async () => {
+        confirmBtn.addEventListener('click', () => {
             this.close();
-            await this.onConfirm();
+            this.onConfirm();
         });
         cancelBtn.addEventListener('click', () => this.close());
     }
 
-    onClose() { this.contentEl.empty(); }
+    onClose(): void {
+        this.contentEl.empty();
+    }
 }

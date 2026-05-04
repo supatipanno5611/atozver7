@@ -1,128 +1,133 @@
+import { App, Notice, SuggestModal, TFile, moment, parseYaml } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
-import { App, Notice, SuggestModal, parseYaml, TFile } from 'obsidian';
-import { moment } from 'obsidian';
 import { DATE_PATTERN, sortBase } from '../utils';
+
+type FrontmatterRecord = Record<string, unknown>;
+
+function readStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
 
 export class PropertiesFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
     private buildTodayBase(): string[] {
-        const m = moment();
+        const today = moment();
         return [
-            m.format('YYYY년'),
-            m.format('M월'),
-            m.format('D일'),
+            `${today.format('YYYY')}\uB144`,
+            `${today.format('M')}\uC6D4`,
+            `${today.format('D')}\uC77C`,
         ];
     }
 
     async lintProperties(): Promise<void> {
-    	const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base', 'uploadtime']);
+        const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base', 'uploadtime']);
         const requiredKeys = Object.keys(this.plugin.settings.userproperties);
         const files = this.plugin.app.vault.getMarkdownFiles();
-
         const excluded = new Set([
             'log.md',
             this.plugin.settings.workFilePath,
             this.plugin.settings.laterFilePath,
         ]);
-    
+
         let cleanedCount = 0;
         let reviewCount = 0;
         const missingKeyFiles: string[] = [];
-    
+
         for (const file of files) {
             if (excluded.has(file.path)) continue;
-    
+
             const toReview: string[] = [];
-    
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                for (const [key, value] of Object.entries(frontmatter)) {
+                const fm = frontmatter as FrontmatterRecord;
+
+                for (const [key, value] of Object.entries(fm)) {
                     if (allowed.has(key)) continue;
-    
-                    const isEmpty =
-                        value === null ||
-                        value === undefined ||
-                        value === '' ||
+
+                    const isEmpty = value === null || value === undefined || value === '' ||
                         (Array.isArray(value) && value.length === 0);
-    
+
                     if (isEmpty) {
-                        delete frontmatter[key];
+                        delete fm[key];
                         cleanedCount++;
                     } else {
                         toReview.push(key);
                     }
                 }
-    
+
                 for (const key of requiredKeys) {
-                    if (frontmatter[key] === undefined) {
+                    if (fm[key] === undefined) {
                         missingKeyFiles.push(file.path);
                         return;
                     }
                 }
             });
-    
+
             if (toReview.length > 0) {
                 const leaf = this.plugin.app.workspace.getLeaf('tab');
                 await leaf.openFile(file);
                 reviewCount++;
             }
         }
-    
+
         if (missingKeyFiles.length > 0) {
             const logContent = missingKeyFiles
-                .map((path, i) => {
-                    const name = path.replace(/\.md$/, '');
-                    return `${i + 1}. [[${name}]]`;
-                })
+                .map((path, index) => `${index + 1}. [[${path.replace(/\.md$/, '')}]]`)
                 .join('\n');
-    
-            const { vault } = this.plugin.app;
-            const existing = vault.getAbstractFileByPath('log.md');
+
+            const existing = this.plugin.app.vault.getAbstractFileByPath('log.md');
             if (existing instanceof TFile) {
-                await vault.modify(existing, logContent);
+                await this.plugin.app.vault.modify(existing, logContent);
             } else {
-                await vault.create('log.md', logContent);
+                await this.plugin.app.vault.create('log.md', logContent);
             }
         }
-    
+
         if (cleanedCount === 0 && reviewCount === 0 && missingKeyFiles.length === 0) {
-            new Notice('정리할 속성이 없습니다.');
-        } else {
-            new Notice(`${cleanedCount}개 속성 정리, ${reviewCount}개 파일 확인 필요, ${missingKeyFiles.length}개 파일 누락 속성 기록.`);
+            new Notice('No properties needed cleanup');
+            return;
         }
+
+        new Notice(`Cleaned ${cleanedCount}, review needed for ${reviewCount}, missing keys logged for ${missingKeyFiles.length} files`);
     }
 
     async insertProperties(initialItems: string[] = []): Promise<void> {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (!activeFile) {
-            new Notice('활성화된 파일이 없습니다.');
+            new Notice('No active file');
             return;
         }
 
         const today = this.buildTodayBase();
 
         await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+            const fm = frontmatter as FrontmatterRecord;
+
             for (const [key, yamlValue] of Object.entries(this.plugin.settings.userproperties)) {
-                if (frontmatter[key] === undefined) {
-                    try {
-                        frontmatter[key] = parseYaml(yamlValue.trim());
-                    } catch {
-                        frontmatter[key] = yamlValue;
-                    }
+                if (fm[key] !== undefined) continue;
+
+                try {
+                    const parsed: unknown = parseYaml(yamlValue.trim());
+                    fm[key] = parsed;
+                } catch {
+                    fm[key] = yamlValue;
                 }
             }
 
-            if (frontmatter['base'] === undefined) {
-                frontmatter['base'] = [...today, ...initialItems];
-            }
-            if (Array.isArray(frontmatter['base'])) {
-                sortBase(frontmatter['base']);
+            if (fm.base === undefined) {
+                fm.base = [...today, ...initialItems];
             }
 
-            const sortedEntries = Object.entries(frontmatter).sort(([a], [b]) => a.localeCompare(b));
-            Object.keys(frontmatter).forEach(key => delete frontmatter[key]);
-            for (const [k, v] of sortedEntries) {
-                frontmatter[k] = v;
+            const base = readStringArray(fm.base);
+            if (base.length > 0 || Array.isArray(fm.base)) {
+                sortBase(base);
+                fm.base = base;
+            }
+
+            const sortedEntries = Object.entries(fm).sort(([a], [b]) => a.localeCompare(b));
+            for (const key of Object.keys(fm)) delete fm[key];
+            for (const [key, value] of sortedEntries) {
+                fm[key] = value;
             }
         });
 
@@ -131,69 +136,70 @@ export class PropertiesFeature {
 }
 
 const NEW_ITEM_PREFIX = "+ '";
+const DONE_LABEL = 'Done';
 
 export class BaseInputModal extends SuggestModal<string> {
-    private candidates: string[];
     private currentBase: string[];
 
-    constructor(app: App, candidates: string[], initialBase?: string[]) {
+    constructor(
+        app: App,
+        private candidates: string[],
+        initialBase?: string[],
+    ) {
         super(app);
-        this.candidates = candidates;
         this.currentBase = initialBase ?? this.fetchInitialBase();
-        this.setPlaceholder('base에 추가할 항목을 입력하세요.');
+        this.setPlaceholder('Add a base item');
     }
 
     private fetchInitialBase(): string[] {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) return [];
+
         const cache = this.app.metadataCache.getFileCache(activeFile);
-        const base = cache?.frontmatter?.['base'];
-        return Array.isArray(base) ? [...base] : [];
+        const frontmatter = cache?.frontmatter as FrontmatterRecord | undefined;
+        return readStringArray(frontmatter?.base);
     }
 
     getSuggestions(query: string): string[] {
         const trimmed = query.trim();
-        const done = '✓ 완료';
-    
-        if (!trimmed) {
-            return [done];
-        }
-    
-        const filtered = this.candidates.filter(c =>
-            !DATE_PATTERN.test(c) &&
-            c.toLowerCase().includes(trimmed.toLowerCase())
+        if (!trimmed) return [DONE_LABEL];
+
+        const filtered = this.candidates.filter((candidate) =>
+            !DATE_PATTERN.test(candidate) &&
+            candidate.toLowerCase().includes(trimmed.toLowerCase()),
         );
-    
-        const newItem = (trimmed && !this.candidates.includes(trimmed))
-            ? `${NEW_ITEM_PREFIX}${trimmed}' 추가`
-            : null;
-    
-        const mappedFiltered = filtered.map(c =>
-            this.currentBase.includes(c) ? `[done] ${c}` : c
+
+        const newItem = this.candidates.includes(trimmed)
+            ? null
+            : `${NEW_ITEM_PREFIX}${trimmed}' add`;
+
+        const mappedFiltered = filtered.map((candidate) =>
+            this.currentBase.includes(candidate) ? `[done] ${candidate}` : candidate,
         );
-    
+
         return filtered.length === 1
-            ? [...mappedFiltered, ...(newItem ? [newItem] : []), done]
-            : [...(newItem ? [newItem] : []), done, ...mappedFiltered];
+            ? [...mappedFiltered, ...(newItem ? [newItem] : []), DONE_LABEL]
+            : [...(newItem ? [newItem] : []), DONE_LABEL, ...mappedFiltered];
     }
 
-    renderSuggestion(value: string, el: HTMLElement) {
+    renderSuggestion(value: string, el: HTMLElement): void {
         el.setText(value);
     }
 
-    async onChooseSuggestion(value: string) {
-        if (value === '✓ 완료') return;
+    onChooseSuggestion(value: string): void {
+        if (value === DONE_LABEL) return;
+        void this.handleChoice(value);
+    }
 
+    private async handleChoice(value: string): Promise<void> {
         const isDone = value.startsWith('[done] ');
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
         const cleaned = isDone ? value.slice(7) : value;
-        const item = isNew
-            ? cleaned.slice(NEW_ITEM_PREFIX.length, -4)
-            : cleaned;
+        const item = isNew ? cleaned.slice(NEW_ITEM_PREFIX.length, -4) : cleaned;
 
         if (isDone) {
             await this.removeFromBase(item);
-            this.currentBase = this.currentBase.filter(c => c !== item);
+            this.currentBase = this.currentBase.filter((candidate) => candidate !== item);
         } else {
             await this.addToBase(item);
             if (!this.currentBase.includes(item)) {
@@ -205,42 +211,45 @@ export class BaseInputModal extends SuggestModal<string> {
         new BaseInputModal(this.app, this.candidates, this.currentBase).open();
     }
 
-    private async addToBase(item: string) {
+    private async addToBase(item: string): Promise<void> {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) return;
 
         let alreadyExists = false;
         await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-            const base = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
+            const fm = frontmatter as FrontmatterRecord;
+            const base = readStringArray(fm.base);
             if (base.includes(item)) {
                 alreadyExists = true;
                 return;
             }
+
             base.push(item);
             sortBase(base);
-            frontmatter['base'] = base;
+            fm.base = base;
         });
 
         if (alreadyExists) {
-            new Notice(`이미 존재하는 항목입니다: ${item}`);
+            new Notice(`Already in base: ${item}`);
             return;
         }
 
         if (!this.candidates.includes(item)) {
             this.candidates.push(item);
         }
-        new Notice(`base에 추가됨: ${item}`);
+        new Notice(`Added to base: ${item}`);
     }
 
-    private async removeFromBase(item: string) {
+    private async removeFromBase(item: string): Promise<void> {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) return;
 
         await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-            const base = Array.isArray(frontmatter['base']) ? frontmatter['base'] : [];
-            frontmatter['base'] = base.filter(v => v !== item);
+            const fm = frontmatter as FrontmatterRecord;
+            const base = readStringArray(fm.base);
+            fm.base = base.filter((value) => value !== item);
         });
 
-        new Notice(`base에서 제거됨: ${item}`);
+        new Notice(`Removed from base: ${item}`);
     }
 }
