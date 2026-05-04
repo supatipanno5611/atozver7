@@ -41,9 +41,10 @@ export class PropertiesFeature {
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 const fm = frontmatter as FrontmatterRecord;
 
-                for (const [key, value] of Object.entries(fm)) {
+                for (const key of Object.keys(fm)) {
                     if (allowed.has(key)) continue;
 
+                    const value = fm[key];
                     const isEmpty = value === null || value === undefined || value === '' ||
                         (Array.isArray(value) && value.length === 0);
 
@@ -103,9 +104,10 @@ export class PropertiesFeature {
         await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
             const fm = frontmatter as FrontmatterRecord;
 
-            for (const [key, yamlValue] of Object.entries(this.plugin.settings.userproperties)) {
+            for (const key of Object.keys(this.plugin.settings.userproperties)) {
                 if (fm[key] !== undefined) continue;
 
+                const yamlValue = this.plugin.settings.userproperties[key] ?? '';
                 try {
                     const parsed: unknown = parseYaml(yamlValue.trim());
                     fm[key] = parsed;
@@ -124,10 +126,15 @@ export class PropertiesFeature {
                 fm.base = base;
             }
 
-            const sortedEntries = Object.entries(fm).sort(([a], [b]) => a.localeCompare(b));
+            const sortedKeys = Object.keys(fm).sort((a, b) => a.localeCompare(b));
+            const sortedValues: FrontmatterRecord = {};
+            for (const key of sortedKeys) {
+                sortedValues[key] = fm[key];
+            }
+
             for (const key of Object.keys(fm)) delete fm[key];
-            for (const [key, value] of sortedEntries) {
-                fm[key] = value;
+            for (const key of sortedKeys) {
+                fm[key] = sortedValues[key];
             }
         });
 
@@ -136,6 +143,7 @@ export class PropertiesFeature {
 }
 
 const NEW_ITEM_PREFIX = "+ '";
+const NEW_ITEM_SUFFIX = "' add";
 const DONE_LABEL = 'Done';
 
 export class BaseInputModal extends SuggestModal<string> {
@@ -171,7 +179,7 @@ export class BaseInputModal extends SuggestModal<string> {
 
         const newItem = this.candidates.includes(trimmed)
             ? null
-            : `${NEW_ITEM_PREFIX}${trimmed}' add`;
+            : `${NEW_ITEM_PREFIX}${trimmed}${NEW_ITEM_SUFFIX}`;
 
         const mappedFiltered = filtered.map((candidate) =>
             this.currentBase.includes(candidate) ? `[done] ${candidate}` : candidate,
@@ -195,7 +203,7 @@ export class BaseInputModal extends SuggestModal<string> {
         const isDone = value.startsWith('[done] ');
         const isNew = value.startsWith(NEW_ITEM_PREFIX);
         const cleaned = isDone ? value.slice(7) : value;
-        const item = isNew ? cleaned.slice(NEW_ITEM_PREFIX.length, -4) : cleaned;
+        const item = isNew ? cleaned.slice(NEW_ITEM_PREFIX.length, -NEW_ITEM_SUFFIX.length) : cleaned;
 
         if (isDone) {
             await this.removeFromBase(item);
