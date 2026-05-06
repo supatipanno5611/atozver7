@@ -137,7 +137,7 @@ export default class ATOZVER6Plugin extends Plugin {
     registerRibbonIcon() {
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => void this.work.openLaterFile());
-        this.addRibbonIcon('lucide-folder-sync', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
+        this.addRibbonIcon('lucide-folder-open', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
     }
 
     registerCommands() {
