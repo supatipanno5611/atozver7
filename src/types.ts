@@ -13,6 +13,7 @@ export interface ATOZSettings {
     isCursorCenterEnabled: boolean;
     userproperties: Record<string, string>;
     projectPath: string;
+    isProjectFolderHidden: boolean;
     snippetTrigger: string;
     snippetLimit: number;
     snippets: string[];
@@ -52,6 +53,7 @@ export const DEFAULT_SETTINGS: ATOZSettings = {
     isCursorCenterEnabled: false,
     userproperties: {},
     projectPath: '',
+    isProjectFolderHidden: false,
     snippetTrigger: '@',
     snippetLimit: 5,
     snippets: [],

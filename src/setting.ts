@@ -57,6 +57,7 @@ export class ATOZSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.projectPath)
                 .onChange(async (v) => {
                     this.plugin.settings.projectPath = v.trim();
+                    this.plugin.projectVisibility.refresh();
                     await this.plugin.saveSettings();
                 }));
 
@@ -139,6 +140,7 @@ export class ATOZSettingTab extends PluginSettingTab {
 
     private async resetSettings(): Promise<void> {
         this.plugin.settings = structuredClone(DEFAULT_SETTINGS);
+        this.plugin.projectVisibility.refresh();
         await this.plugin.saveSettings();
         new Notice('설정을 기본값으로 초기화했습니다.');
         this.display();

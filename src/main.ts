@@ -10,6 +10,7 @@ import { MobileFeature } from './features/Mobile';
 import { MoveCursorFeature } from './features/MoveCursor';
 import { ProjectIngest } from './features/ProjectIngest';
 import { ProjectKeeper } from './features/ProjectKeeper';
+import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
 import { SelectionFeature } from './features/Selection';
 import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
@@ -37,6 +38,7 @@ export default class ATOZVER6Plugin extends Plugin {
     cutCreateNewMd!: CutCreateNewMdFeature;
     projectIngest!: ProjectIngest;
     projectKeeper!: ProjectKeeper;
+    projectVisibility!: ProjectVisibility;
     mobile!: MobileFeature;
     timestamp!: TimestampFeature;
 
@@ -61,6 +63,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.projectIngest = new ProjectIngest(this);
         this.projectKeeper = new ProjectKeeper(this);
+        this.projectVisibility = new ProjectVisibility(this);
         this.mobile = new MobileFeature(this);
         this.timestamp = new TimestampFeature(this);
 
@@ -74,6 +77,7 @@ export default class ATOZVER6Plugin extends Plugin {
 
         this.app.workspace.onLayoutReady(() => {
             this.baseCandidates = this.collectBaseCandidates();
+            this.projectVisibility.install();
             this.mobile.install();
         });
     }
@@ -84,6 +88,7 @@ export default class ATOZVER6Plugin extends Plugin {
             this.saveTimer = null;
             void this.saveSettings();
         }
+        this.projectVisibility.uninstall();
         this.mobile.uninstall();
     }
 
@@ -132,6 +137,7 @@ export default class ATOZVER6Plugin extends Plugin {
     registerRibbonIcon() {
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => void this.work.openLaterFile());
+        this.addRibbonIcon('lucide-folder-sync', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
     }
 
     registerCommands() {
@@ -160,6 +166,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => void this.projectIngest.addActiveFileToProject() });
         this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 제거', callback: () => void this.projectKeeper.removeActiveFileFromProject() });
         this.addCommand({ id: 'verify-project-integrity', name: '프로젝트 무결성 검증', callback: () => void this.projectKeeper.verifyIntegrity() });
+        this.addCommand({ id: 'toggle-project-folder-visibility', name: '프로젝트 폴더 숨김 토글', icon: 'lucide-folder-sync', callback: () => void this.projectVisibility.toggleProjectFolderHidden() });
 
         this.addCommand({ id: 'insert-properties', name: '속성 삽입', icon: 'lucide-table-of-contents', callback: () => void this.properties.insertProperties() });
         this.addCommand({ id: 'lint-properties', name: '속성 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
