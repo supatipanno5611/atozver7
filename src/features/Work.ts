@@ -71,10 +71,10 @@ export class WorkFeature {
     }
 
     async openLaterFile(): Promise<void> {
-        await this.openFileInRoot(this.plugin.settings.laterFilePath, 'Failed to open later note.');
+        await this.openFileInRoot(this.plugin.settings.laterFilePath, 'Failed to open later note.', true);
     }
 
-    private async openFileInRoot(path: string, errorMessage: string): Promise<void> {
+    private async openFileInRoot(path: string, errorMessage: string, moveToLastHeading = false): Promise<void> {
         const { workspace, vault } = this.plugin.app;
 
         try {
@@ -103,9 +103,23 @@ export class WorkFeature {
             workspace.setActiveLeaf(leaf, { focus: true });
             if (leaf.view instanceof MarkdownView) {
                 leaf.view.editor.focus();
+                if (moveToLastHeading) this.moveToLastHeading(leaf.view);
             }
         } catch {
             new Notice(errorMessage);
+        }
+    }
+
+    private moveToLastHeading(view: MarkdownView): void {
+        const { editor } = view;
+
+        for (let line = editor.lineCount() - 1; line >= 0; line--) {
+            if (/^#{1,6}\s+\S/.test(editor.getLine(line))) {
+                const pos = { line, ch: 0 };
+                editor.setCursor(pos);
+                editor.scrollIntoView({ from: pos, to: pos }, true);
+                return;
+            }
         }
     }
 }
