@@ -2,7 +2,7 @@ import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type ATOZVER6Plugin from './main';
 import { DEFAULT_SETTINGS } from './types';
 
-type JsonSettingKey = 'userproperties' | 'symbols' | 'symbolPairs';
+type JsonSettingKey = 'symbols' | 'symbolPairs';
 type NumberSettingKey = 'snippetLimit' | 'symbolLimit';
 
 export class ATOZSettingTab extends PluginSettingTab {
@@ -39,14 +39,6 @@ export class ATOZSettingTab extends PluginSettingTab {
                     this.plugin.settings.isCursorCenterEnabled = v;
                     await this.plugin.saveSettings();
                 }));
-
-        new Setting(containerEl).setName('속성').setHeading();
-        this.addJsonSetting(
-            containerEl,
-            '기본 사용자 속성',
-            '프론트매터 속성을 넣을 때 사용할 JSON 객체입니다.',
-            'userproperties',
-        );
 
         new Setting(containerEl).setName('프로젝트').setHeading();
         new Setting(containerEl)
@@ -218,11 +210,6 @@ export class ATOZSettingTab extends PluginSettingTab {
     }
 
     private updateJsonSetting(key: JsonSettingKey, value: unknown): void {
-        if (key === 'userproperties' && this.isStringRecord(value)) {
-            this.plugin.settings.userproperties = value;
-            return;
-        }
-
         if (key === 'symbolPairs' && this.isStringRecord(value)) {
             this.plugin.settings.symbolPairs = value;
             return;

@@ -11,7 +11,6 @@ export type FrontmatterData = Record<string, FrontmatterValue>;
 export interface ATOZSettings {
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
-    userproperties: Record<string, string>;
     projectPath: string;
     isProjectFolderHidden: boolean;
     snippetTrigger: string;
@@ -51,7 +50,6 @@ export interface ParsedDocument {
 export const DEFAULT_SETTINGS: ATOZSettings = {
     CertainMdPath: '',
     isCursorCenterEnabled: false,
-    userproperties: {},
     projectPath: '',
     isProjectFolderHidden: false,
     snippetTrigger: '@',

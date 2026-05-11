@@ -1,28 +1,30 @@
-import { App, Notice, SuggestModal, TFile, moment, parseYaml } from 'obsidian';
+import { Notice } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
-import { DATE_PATTERN, sortBase } from '../utils';
+import { AudioFeature } from './Audio';
+import { BaseFeature } from './Base';
+import { YoutubeFeature } from './Youtube';
 
 type FrontmatterRecord = Record<string, unknown>;
 
-function readStringArray(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+const ALLOWED_PROPERTIES = new Set(['base', 'youtubeId', 'audioSrc', 'audioTitle']);
+
+function isEmptyProperty(value: unknown): boolean {
+    return value === null || value === undefined || value === '' ||
+        (Array.isArray(value) && value.length === 0);
 }
 
 export class PropertiesFeature {
-    constructor(private plugin: ATOZVER6Plugin) {}
+    private base: BaseFeature;
+    private youtube: YoutubeFeature;
+    private audio: AudioFeature;
 
-    private buildTodayBase(): string[] {
-        const today = moment();
-        return [
-            `${today.format('YYYY')}\uB144`,
-            `${today.format('M')}\uC6D4`,
-            `${today.format('D')}\uC77C`,
-        ];
+    constructor(private plugin: ATOZVER6Plugin) {
+        this.base = new BaseFeature(plugin);
+        this.youtube = new YoutubeFeature(plugin);
+        this.audio = new AudioFeature(plugin);
     }
 
     async lintProperties(): Promise<void> {
-        const allowed = new Set([...Object.keys(this.plugin.settings.userproperties), 'base', 'uploadtime']);
-        const requiredKeys = Object.keys(this.plugin.settings.userproperties);
         const files = this.plugin.app.vault.getMarkdownFiles();
         const excluded = new Set([
             'log.md',
@@ -32,232 +34,58 @@ export class PropertiesFeature {
 
         let cleanedCount = 0;
         let reviewCount = 0;
-        const missingKeyFiles: string[] = [];
 
         for (const file of files) {
             if (excluded.has(file.path)) continue;
 
-            const toReview: string[] = [];
+            const toReview = new Set<string>();
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 const fm = frontmatter as FrontmatterRecord;
 
                 for (const key of Object.keys(fm)) {
-                    if (allowed.has(key)) continue;
+                    if (ALLOWED_PROPERTIES.has(key)) continue;
 
                     const value = fm[key];
-                    const isEmpty = value === null || value === undefined || value === '' ||
-                        (Array.isArray(value) && value.length === 0);
-
-                    if (isEmpty) {
+                    if (isEmptyProperty(value)) {
                         delete fm[key];
                         cleanedCount++;
                     } else {
-                        toReview.push(key);
+                        toReview.add(key);
                     }
                 }
 
-                for (const key of requiredKeys) {
-                    if (fm[key] === undefined) {
-                        missingKeyFiles.push(file.path);
-                        return;
-                    }
+                if (fm.audioSrc !== undefined && fm.audioTitle === undefined) {
+                    toReview.add('audioTitle');
+                }
+                if (fm.audioSrc === undefined && fm.audioTitle !== undefined) {
+                    toReview.add('audioSrc');
                 }
             });
 
-            if (toReview.length > 0) {
+            if (toReview.size > 0) {
                 const leaf = this.plugin.app.workspace.getLeaf('tab');
                 await leaf.openFile(file);
                 reviewCount++;
             }
         }
 
-        if (missingKeyFiles.length > 0) {
-            const logContent = missingKeyFiles
-                .map((path, index) => `${index + 1}. [[${path.replace(/\.md$/, '')}]]`)
-                .join('\n');
-
-            const existing = this.plugin.app.vault.getAbstractFileByPath('log.md');
-            if (existing instanceof TFile) {
-                await this.plugin.app.vault.modify(existing, logContent);
-            } else {
-                await this.plugin.app.vault.create('log.md', logContent);
-            }
-        }
-
-        if (cleanedCount === 0 && reviewCount === 0 && missingKeyFiles.length === 0) {
-            new Notice('No properties needed cleanup');
+        if (cleanedCount === 0 && reviewCount === 0) {
+            new Notice('정리할 속성이 없습니다.');
             return;
         }
 
-        new Notice(`Cleaned ${cleanedCount}, review needed for ${reviewCount}, missing keys logged for ${missingKeyFiles.length} files`);
+        new Notice(`속성 ${cleanedCount}개를 정리했고, 파일 ${reviewCount}개는 검토가 필요합니다.`);
     }
 
-    async insertProperties(initialItems: string[] = []): Promise<void> {
-        const activeFile = this.plugin.app.workspace.getActiveFile();
-        if (!activeFile) {
-            new Notice('No active file');
-            return;
-        }
-
-        const today = this.buildTodayBase();
-
-        await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-            const fm = frontmatter as FrontmatterRecord;
-
-            for (const key of Object.keys(this.plugin.settings.userproperties)) {
-                if (fm[key] !== undefined) continue;
-
-                const yamlValue = this.plugin.settings.userproperties[key] ?? '';
-                try {
-                    const parsed: unknown = parseYaml(yamlValue.trim());
-                    fm[key] = parsed;
-                } catch {
-                    fm[key] = yamlValue;
-                }
-            }
-
-            if (fm.base === undefined) {
-                fm.base = [...today, ...initialItems];
-            }
-
-            const base = readStringArray(fm.base);
-            if (base.length > 0 || Array.isArray(fm.base)) {
-                sortBase(base);
-                fm.base = base;
-            }
-
-            const sortedKeys = Object.keys(fm).sort((a, b) => a.localeCompare(b));
-            const sortedValues: FrontmatterRecord = {};
-            for (const key of sortedKeys) {
-                sortedValues[key] = fm[key];
-            }
-
-            for (const key of Object.keys(fm)) delete fm[key];
-            for (const key of sortedKeys) {
-                fm[key] = sortedValues[key];
-            }
-        });
-
-        new BaseInputModal(this.plugin.app, this.plugin.baseCandidates).open();
-    }
-}
-
-const NEW_ITEM_PREFIX = "+ '";
-const NEW_ITEM_SUFFIX = "' add";
-const DONE_LABEL = 'Done';
-
-export class BaseInputModal extends SuggestModal<string> {
-    private currentBase: string[];
-
-    constructor(
-        app: App,
-        private candidates: string[],
-        initialBase?: string[],
-    ) {
-        super(app);
-        this.currentBase = initialBase ?? this.fetchInitialBase();
-        this.setPlaceholder('Add a base item');
+    async insertBaseProperties(initialItems: string[] = []): Promise<void> {
+        await this.base.insertBaseProperties(initialItems);
     }
 
-    private fetchInitialBase(): string[] {
-        const activeFile = this.app.workspace.getActiveFile();
-        if (!activeFile) return [];
-
-        const cache = this.app.metadataCache.getFileCache(activeFile);
-        const frontmatter = cache?.frontmatter as FrontmatterRecord | undefined;
-        return readStringArray(frontmatter?.base);
+    insertYoutubeProperties(): void {
+        this.youtube.insertYoutubeProperties();
     }
 
-    getSuggestions(query: string): string[] {
-        const trimmed = query.trim();
-        if (!trimmed) return [DONE_LABEL];
-
-        const filtered = this.candidates.filter((candidate) =>
-            !DATE_PATTERN.test(candidate) &&
-            candidate.toLowerCase().includes(trimmed.toLowerCase()),
-        );
-
-        const newItem = this.candidates.includes(trimmed)
-            ? null
-            : `${NEW_ITEM_PREFIX}${trimmed}${NEW_ITEM_SUFFIX}`;
-
-        const mappedFiltered = filtered.map((candidate) =>
-            this.currentBase.includes(candidate) ? `[done] ${candidate}` : candidate,
-        );
-
-        return filtered.length === 1
-            ? [...mappedFiltered, ...(newItem ? [newItem] : []), DONE_LABEL]
-            : [...(newItem ? [newItem] : []), DONE_LABEL, ...mappedFiltered];
-    }
-
-    renderSuggestion(value: string, el: HTMLElement): void {
-        el.setText(value);
-    }
-
-    onChooseSuggestion(value: string): void {
-        if (value === DONE_LABEL) return;
-        void this.handleChoice(value);
-    }
-
-    private async handleChoice(value: string): Promise<void> {
-        const isDone = value.startsWith('[done] ');
-        const isNew = value.startsWith(NEW_ITEM_PREFIX);
-        const cleaned = isDone ? value.slice(7) : value;
-        const item = isNew ? cleaned.slice(NEW_ITEM_PREFIX.length, -NEW_ITEM_SUFFIX.length) : cleaned;
-
-        if (isDone) {
-            await this.removeFromBase(item);
-            this.currentBase = this.currentBase.filter((candidate) => candidate !== item);
-        } else {
-            await this.addToBase(item);
-            if (!this.currentBase.includes(item)) {
-                this.currentBase.push(item);
-                sortBase(this.currentBase);
-            }
-        }
-
-        new BaseInputModal(this.app, this.candidates, this.currentBase).open();
-    }
-
-    private async addToBase(item: string): Promise<void> {
-        const activeFile = this.app.workspace.getActiveFile();
-        if (!activeFile) return;
-
-        let alreadyExists = false;
-        await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-            const fm = frontmatter as FrontmatterRecord;
-            const base = readStringArray(fm.base);
-            if (base.includes(item)) {
-                alreadyExists = true;
-                return;
-            }
-
-            base.push(item);
-            sortBase(base);
-            fm.base = base;
-        });
-
-        if (alreadyExists) {
-            new Notice(`Already in base: ${item}`);
-            return;
-        }
-
-        if (!this.candidates.includes(item)) {
-            this.candidates.push(item);
-        }
-        new Notice(`Added to base: ${item}`);
-    }
-
-    private async removeFromBase(item: string): Promise<void> {
-        const activeFile = this.app.workspace.getActiveFile();
-        if (!activeFile) return;
-
-        await this.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
-            const fm = frontmatter as FrontmatterRecord;
-            const base = readStringArray(fm.base);
-            fm.base = base.filter((value) => value !== item);
-        });
-
-        new Notice(`Removed from base: ${item}`);
+    insertAudioProperties(): void {
+        this.audio.insertAudioProperties();
     }
 }
