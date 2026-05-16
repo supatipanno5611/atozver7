@@ -1,6 +1,7 @@
 import { App, Modal, Notice, TFile, TFolder } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
 import { DATE_PATTERN, INTERNAL_LINK_PATTERN, buildDocument, parseDocument, sortBase } from '../utils';
+import { validatePropertyState, type FrontmatterRecord, type PropertyIssue } from './PropertyValidation';
 
 export class ProjectIngest {
     constructor(private plugin: ATOZVER6Plugin) {}
@@ -75,6 +76,12 @@ export class ProjectIngest {
         }
 
         const closure = this.computeClosure(activeFile);
+        const propertyIssues = await this.collectPropertyIssues(closure);
+        if (propertyIssues.length > 0) {
+            await this.handlePropertyIssues(propertyIssues);
+            return;
+        }
+
         const allUploadPaths = closure.map((file) => `${proj.path}/${file.basename}.md`);
         const isReupload = this.getCopiedFile(activeFile, proj.path) instanceof TFile;
         const currentCopyCount = this.plugin.app.vault.getMarkdownFiles()
@@ -94,6 +101,33 @@ export class ProjectIngest {
                 void this.executeUpload(closure, proj, isReupload);
             },
         ).open();
+    }
+
+    private async collectPropertyIssues(files: TFile[]): Promise<PropertyIssue[]> {
+        const issues: PropertyIssue[] = [];
+
+        for (const file of files) {
+            const raw = await this.plugin.app.vault.read(file);
+            const { frontmatter } = parseDocument(raw);
+            issues.push(...validatePropertyState(frontmatter as FrontmatterRecord, file.path));
+        }
+
+        return issues;
+    }
+
+    private async handlePropertyIssues(issues: PropertyIssue[]): Promise<void> {
+        await this.appendPropertyCheckLog(issues);
+
+        const firstIssue = issues[0];
+        if (firstIssue) {
+            const file = this.plugin.app.vault.getAbstractFileByPath(firstIssue.path);
+            if (file instanceof TFile) {
+                const leaf = this.plugin.app.workspace.getLeaf('tab');
+                await leaf.openFile(file);
+            }
+        }
+
+        new Notice(`속성 문제 ${issues.length}개가 있어 업로드를 중단했습니다. log.md를 확인하세요.`);
     }
 
     private async executeUpload(
@@ -141,6 +175,19 @@ export class ProjectIngest {
     private async appendUploadLog(files: TFile[], proj: { path: string; displayName: string }): Promise<void> {
         const lines = files.map((file) => `- ${file.basename}`).join('\n');
         const entry = `## ${proj.displayName}\n${lines}\n`;
+        const existing = this.plugin.app.vault.getAbstractFileByPath('log.md');
+        if (existing instanceof TFile) {
+            await this.plugin.app.vault.process(existing, (content) => `${content}\n${entry}`);
+            return;
+        }
+        await this.plugin.app.vault.create('log.md', entry);
+    }
+
+    private async appendPropertyCheckLog(issues: PropertyIssue[]): Promise<void> {
+        const lines = issues
+            .map((issue) => `- ${issue.path}: ${issue.message}`)
+            .join('\n');
+        const entry = `## Property check\n${issues.length} issue(s)\n${lines}\n`;
         const existing = this.plugin.app.vault.getAbstractFileByPath('log.md');
         if (existing instanceof TFile) {
             await this.plugin.app.vault.process(existing, (content) => `${content}\n${entry}`);

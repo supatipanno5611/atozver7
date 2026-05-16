@@ -171,6 +171,10 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'insert-properties', name: '베이스 속성 삽입', icon: 'lucide-table-of-contents', callback: () => void this.properties.insertBaseProperties() });
         this.addCommand({ id: 'insert-youtube-properties', name: '유튜브 속성 삽입', icon: 'lucide-youtube', callback: () => this.properties.insertYoutubeProperties() });
         this.addCommand({ id: 'insert-audio-properties', name: '오디오 속성 삽입', icon: 'lucide-file-audio', callback: () => this.properties.insertAudioProperties() });
+        this.addCommand({ id: 'insert-teacher-properties', name: '법문자 속성 삽입', icon: 'lucide-user', callback: () => this.properties.insertTeacherProperties() });
+        this.addCommand({ id: 'insert-translator-properties', name: '번역자 속성 삽입', icon: 'lucide-languages', callback: () => this.properties.insertTranslatorProperties() });
+        this.addCommand({ id: 'insert-questioner-properties', name: '질문자 속성 삽입', icon: 'lucide-circle-help', callback: () => this.properties.insertQuestionerProperties() });
+        this.addCommand({ id: 'insert-writer-properties', name: '저자 속성 삽입', icon: 'lucide-pen-line', callback: () => this.properties.insertWriterProperties() });
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
         this.addCommand({
             id: 'refresh-base-candidates',
