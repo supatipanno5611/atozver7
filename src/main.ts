@@ -168,7 +168,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'verify-project-integrity', name: '프로젝트 무결성 검증', callback: () => void this.projectKeeper.verifyIntegrity() });
         this.addCommand({ id: 'toggle-project-folder-visibility', name: '프로젝트 폴더 숨김 토글', icon: 'lucide-folder-sync', callback: () => void this.projectVisibility.toggleProjectFolderHidden() });
 
-        this.addCommand({ id: 'insert-properties', name: '베이스 속성 삽입', icon: 'lucide-table-of-contents', callback: () => void this.properties.insertBaseProperties() });
+        this.addCommand({ id: 'insert-properties', name: 'base 속성 삽입', icon: 'lucide-table-of-contents', callback: () => void this.properties.insertBaseProperties() });
         this.addCommand({ id: 'insert-youtube-properties', name: '유튜브 속성 삽입', icon: 'lucide-youtube', callback: () => this.properties.insertYoutubeProperties() });
         this.addCommand({ id: 'insert-audio-properties', name: '오디오 속성 삽입', icon: 'lucide-file-audio', callback: () => this.properties.insertAudioProperties() });
         this.addCommand({ id: 'insert-teacher-properties', name: '법문자 속성 삽입', icon: 'lucide-user', callback: () => this.properties.insertTeacherProperties() });
@@ -178,10 +178,10 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
         this.addCommand({
             id: 'refresh-base-candidates',
-            name: '베이스 후보 캐시 재수집',
+            name: 'base 후보 캐시 재수집',
             callback: () => {
                 this.baseCandidates = this.collectBaseCandidates();
-                new Notice('베이스 후보 캐시를 다시 수집했습니다.');
+                new Notice('base 후보 캐시를 다시 수집했습니다.');
             },
         });
 

@@ -77,7 +77,7 @@ export class BaseInputModal extends SuggestModal<string> {
     ) {
         super(app);
         this.currentBase = initialBase ?? this.fetchInitialBase();
-        this.setPlaceholder('기준 항목 추가');
+        this.setPlaceholder('base 항목 추가');
     }
 
     private fetchInitialBase(): string[] {
@@ -159,14 +159,14 @@ export class BaseInputModal extends SuggestModal<string> {
         });
 
         if (alreadyExists) {
-            new Notice(`이미 기준에 있습니다: ${item}`);
+            new Notice(`이미 base에 있습니다: ${item}`);
             return;
         }
 
         if (!this.candidates.includes(item)) {
             this.candidates.push(item);
         }
-        new Notice(`기준에 추가했습니다: ${item}`);
+        new Notice(`base에 추가했습니다: ${item}`);
     }
 
     private async removeFromBase(item: string): Promise<void> {
@@ -179,6 +179,6 @@ export class BaseInputModal extends SuggestModal<string> {
             fm.base = base.filter((value) => value !== item);
         });
 
-        new Notice(`기준에서 제거했습니다: ${item}`);
+        new Notice(`base에서 제거했습니다: ${item}`);
     }
 }
