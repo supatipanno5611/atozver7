@@ -13,7 +13,7 @@ import { ProjectKeeper } from './features/ProjectKeeper';
 import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
 import { SelectionFeature } from './features/Selection';
-import { SnippetsFeature, SnippetsSuggestions } from './features/Snippets';
+import { SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
 import { TimestampFeature } from './features/Timestamp';
 import { WorkFeature } from './features/Work';
@@ -32,7 +32,6 @@ export default class ATOZVER6Plugin extends Plugin {
     properties!: PropertiesFeature;
     cutCopy!: CutCopyFeature;
     cycleTab!: CycleTabFeature;
-    snippets!: SnippetsFeature;
     symbols!: SymbolsFeature;
     work!: WorkFeature;
     cutCreateNewMd!: CutCreateNewMdFeature;
@@ -57,7 +56,6 @@ export default class ATOZVER6Plugin extends Plugin {
         this.properties = new PropertiesFeature(this);
         this.cutCopy = new CutCopyFeature(this);
         this.cycleTab = new CycleTabFeature(this);
-        this.snippets = new SnippetsFeature(this);
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
@@ -189,9 +187,6 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: 'lucide-chevrons-right', editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
 
         this.addCommand({ id: 'merge-timestamp-lines', name: '타임스탬프 행 병합', editorCallback: (editor: Editor) => this.timestamp.mergeTimestampLines(editor) });
-
-        this.addCommand({ id: 'add-to-snippets', name: '조각글 추가', icon: 'lucide-clipboard-plus', editorCallback: (editor: Editor) => { void this.snippets.addSnippet(editor.getSelection()); } });
-        this.addCommand({ id: 'remove-from-snippets', name: '조각글 제거', icon: 'lucide-clipboard-minus', editorCallback: (editor: Editor) => { void this.snippets.removeSnippet(editor.getSelection()); } });
 
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => void this.work.openWorkFile() });
         this.addCommand({ id: 'open-later-file', name: '보관 문서 열기', callback: () => void this.work.openLaterFile() });

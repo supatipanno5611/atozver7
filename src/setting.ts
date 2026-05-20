@@ -53,10 +53,10 @@ export class ATOZSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl).setName('스니펫').setHeading();
+        new Setting(containerEl).setName('조각글').setHeading();
         new Setting(containerEl)
-            .setName('스니펫 트리거 문자')
-            .setDesc('이 문자를 입력하면 스니펫 추천이 열립니다.')
+            .setName('조각글 트리거 문자')
+            .setDesc('이 문자를 입력하면 조각글 추천이 열립니다.')
             .addText((t) => t
                 .setPlaceholder('@')
                 .setValue(this.plugin.settings.snippetTrigger)
@@ -65,8 +65,8 @@ export class ATOZSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        this.addNumberSetting(containerEl, '스니펫 표시 개수', '보여줄 스니펫 추천의 최대 개수입니다.', 'snippetLimit');
-        this.addLineListSetting(containerEl, '스니펫 목록', '한 줄에 하나씩 입력합니다.', 'snippets');
+        this.addNumberSetting(containerEl, '조각글 표시 개수', '보여줄 조각글 추천의 최대 개수입니다.', 'snippetLimit');
+        this.addLineListSetting(containerEl, '조각글 목록', '한 줄에 하나씩 입력합니다.', 'snippets');
 
         new Setting(containerEl).setName('기호').setHeading();
         new Setting(containerEl)

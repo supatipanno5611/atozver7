@@ -27,9 +27,9 @@ export interface ATOZSettings {
     workTimestampFormat: string;
 }
 
-export interface SnippetsItem {
-    content: string;
-}
+export type SnippetsItem =
+    | { kind: 'snippet'; content: string }
+    | { kind: 'add'; content: string };
 
 export interface SymbolItem {
     id: string;
