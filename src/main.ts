@@ -136,6 +136,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addRibbonIcon('lucide-file-pen', '작업 문서 열기', () => void this.work.openWorkFile());
         this.addRibbonIcon('lucide-inbox', '보관 문서 열기', () => void this.work.openLaterFile());
         this.addRibbonIcon('lucide-folder-open', '프로젝트 폴더 숨김 토글', () => void this.projectVisibility.toggleProjectFolderHidden());
+        this.addRibbonIcon('lucide-panel-bottom', '모바일 툴바 숨김 토글', () => this.mobile.toggleMobileToolbarHidden());
     }
 
     registerCommands() {
@@ -165,6 +166,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 제거', callback: () => void this.projectKeeper.removeActiveFileFromProject() });
         this.addCommand({ id: 'verify-project-integrity', name: '프로젝트 무결성 검증', callback: () => void this.projectKeeper.verifyIntegrity() });
         this.addCommand({ id: 'toggle-project-folder-visibility', name: '프로젝트 폴더 숨김 토글', icon: 'lucide-folder-sync', callback: () => void this.projectVisibility.toggleProjectFolderHidden() });
+        this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
 
         this.addCommand({ id: 'insert-properties', name: 'base 속성 삽입', icon: 'lucide-table-of-contents', callback: () => void this.properties.insertBaseProperties() });
         this.addCommand({ id: 'insert-youtube-properties', name: '유튜브 속성 삽입', icon: 'lucide-youtube', callback: () => this.properties.insertYoutubeProperties() });
