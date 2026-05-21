@@ -168,7 +168,8 @@ export class ProjectIngest {
         });
 
         sortBase(filtered);
-        frontmatter.base = filtered;
+        frontmatter.topic = filtered;
+        delete frontmatter.base;
         await vault.create(targetPath, buildDocument(frontmatter, body));
     }
 
