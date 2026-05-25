@@ -8,8 +8,6 @@ import { ExecutesFeature } from './features/Executes';
 import { HeadingNavigaterFeature } from './features/HeadingNavigater';
 import { MobileFeature } from './features/Mobile';
 import { MoveCursorFeature } from './features/MoveCursor';
-import { ProjectIngest } from './features/ProjectIngest';
-import { ProjectKeeper } from './features/ProjectKeeper';
 import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
 import { SelectionFeature } from './features/Selection';
@@ -19,7 +17,6 @@ import { TimestampFeature } from './features/Timestamp';
 import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
-import { DATE_PATTERN, INTERNAL_LINK_PATTERN, URL_PATTERN } from './utils';
 
 export default class ATOZVER6Plugin extends Plugin {
     settings!: ATOZSettings;
@@ -35,13 +32,11 @@ export default class ATOZVER6Plugin extends Plugin {
     symbols!: SymbolsFeature;
     work!: WorkFeature;
     cutCreateNewMd!: CutCreateNewMdFeature;
-    projectIngest!: ProjectIngest;
-    projectKeeper!: ProjectKeeper;
     projectVisibility!: ProjectVisibility;
     mobile!: MobileFeature;
     timestamp!: TimestampFeature;
 
-    baseCandidates: string[] = [];
+    topicCandidates: string[] = [];
     private saveTimer: number | null = null;
 
     async onload() {
@@ -59,8 +54,6 @@ export default class ATOZVER6Plugin extends Plugin {
         this.symbols = new SymbolsFeature(this);
         this.work = new WorkFeature(this);
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
-        this.projectIngest = new ProjectIngest(this);
-        this.projectKeeper = new ProjectKeeper(this);
         this.projectVisibility = new ProjectVisibility(this);
         this.mobile = new MobileFeature(this);
         this.timestamp = new TimestampFeature(this);
@@ -74,7 +67,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.registerEditorSuggest(new SymbolSuggestions(this));
 
         this.app.workspace.onLayoutReady(() => {
-            this.baseCandidates = this.collectBaseCandidates();
+            this.topicCandidates = this.collectTopicCandidates();
             this.projectVisibility.install();
             this.mobile.install();
         });
@@ -108,22 +101,17 @@ export default class ATOZVER6Plugin extends Plugin {
         }, 300);
     }
 
-    collectBaseCandidates(): string[] {
+    collectTopicCandidates(): string[] {
         const candidates = new Set<string>();
 
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
             const frontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
-            const base = frontmatter?.base;
-            if (!Array.isArray(base)) continue;
+            const topics = frontmatter?.topics;
+            if (!Array.isArray(topics)) continue;
 
-            for (const value of base) {
-                if (
-                    typeof value === 'string' &&
-                    !DATE_PATTERN.test(value) &&
-                    !URL_PATTERN.test(value) &&
-                    !INTERNAL_LINK_PATTERN.test(value)
-                ) {
+            for (const value of topics) {
+                if (typeof value === 'string') {
                     candidates.add(value);
                 }
             }
@@ -162,28 +150,15 @@ export default class ATOZVER6Plugin extends Plugin {
         this.addCommand({ id: 'go-to-line-start', name: '커서를 행 시작으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineStart(editor) });
         this.addCommand({ id: 'go-to-line-end', name: '커서를 행 끝으로 이동', editorCallback: (editor: Editor) => this.moveCursor.goToLineEnd(editor) });
 
-        this.addCommand({ id: 'add-file-to-project', name: '현재 파일을 프로젝트에 추가', callback: () => void this.projectIngest.addActiveFileToProject() });
-        this.addCommand({ id: 'remove-file-from-project', name: '현재 파일을 프로젝트에서 제거', callback: () => void this.projectKeeper.removeActiveFileFromProject() });
-        this.addCommand({ id: 'verify-project-integrity', name: '프로젝트 무결성 검증', callback: () => void this.projectKeeper.verifyIntegrity() });
         this.addCommand({ id: 'toggle-project-folder-visibility', name: '프로젝트 폴더 숨김 토글', icon: 'lucide-folder-sync', callback: () => void this.projectVisibility.toggleProjectFolderHidden() });
         this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
 
-        this.addCommand({ id: 'insert-properties', name: 'base 속성 삽입', icon: 'lucide-table-of-contents', callback: () => void this.properties.insertBaseProperties() });
+        this.addCommand({ id: 'configure-publish-note', name: '게시 노트 설정', icon: 'lucide-table-of-contents', callback: () => void this.properties.configurePublishNote() });
+        this.addCommand({ id: 'edit-topics', name: '주제어 편집', icon: 'lucide-tags', callback: () => void this.properties.editTopics() });
+        this.addCommand({ id: 'migrate-base-properties', name: '기존 속성 이전', icon: 'lucide-list-restart', callback: () => void this.properties.migrateBaseProperties() });
         this.addCommand({ id: 'insert-youtube-properties', name: '유튜브 속성 삽입', icon: 'lucide-youtube', callback: () => this.properties.insertYoutubeProperties() });
         this.addCommand({ id: 'insert-audio-properties', name: '오디오 속성 삽입', icon: 'lucide-file-audio', callback: () => this.properties.insertAudioProperties() });
-        this.addCommand({ id: 'insert-teacher-properties', name: '법문자 속성 삽입', icon: 'lucide-user', callback: () => this.properties.insertTeacherProperties() });
-        this.addCommand({ id: 'insert-translator-properties', name: '번역자 속성 삽입', icon: 'lucide-languages', callback: () => this.properties.insertTranslatorProperties() });
-        this.addCommand({ id: 'insert-questioner-properties', name: '질문자 속성 삽입', icon: 'lucide-circle-help', callback: () => this.properties.insertQuestionerProperties() });
-        this.addCommand({ id: 'insert-writer-properties', name: '저자 속성 삽입', icon: 'lucide-pen-line', callback: () => this.properties.insertWriterProperties() });
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });
-        this.addCommand({
-            id: 'refresh-base-candidates',
-            name: 'base 후보 캐시 재수집',
-            callback: () => {
-                this.baseCandidates = this.collectBaseCandidates();
-                new Notice('base 후보 캐시를 다시 수집했습니다.');
-            },
-        });
 
         this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: 'lucide-chevrons-left', editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
         this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: 'lucide-chevrons-right', editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });

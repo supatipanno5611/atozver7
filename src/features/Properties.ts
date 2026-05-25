@@ -1,16 +1,23 @@
 import { Notice } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
 import { AudioFeature } from './Audio';
-import { BaseFeature } from './Base';
-import { PeopleFeature } from './People';
-import { validatePropertyState, type FrontmatterRecord } from './PropertyValidation';
+import { BaseMigrationFeature } from './BaseMigration';
+import { PublishNoteFeature } from './PublishNote';
 import { YoutubeFeature } from './Youtube';
+
+type FrontmatterRecord = Record<string, unknown>;
 
 const ALLOWED_PROPERTIES = new Set([
     'base',
+    'date',
+    'topics',
+    'type',
+    'parent',
+    'order',
     'youtubeId',
     'audioSrc',
     'audioTitle',
+    // Legacy fields are removed by the explicit migration command, not lint.
     'teacher',
     'translator',
     'questioner',
@@ -23,16 +30,16 @@ function isEmptyProperty(value: unknown): boolean {
 }
 
 export class PropertiesFeature {
-    private base: BaseFeature;
+    private publishNote: PublishNoteFeature;
+    private baseMigration: BaseMigrationFeature;
     private youtube: YoutubeFeature;
     private audio: AudioFeature;
-    private people: PeopleFeature;
 
     constructor(private plugin: ATOZVER6Plugin) {
-        this.base = new BaseFeature(plugin);
+        this.publishNote = new PublishNoteFeature(plugin);
+        this.baseMigration = new BaseMigrationFeature(plugin);
         this.youtube = new YoutubeFeature(plugin);
         this.audio = new AudioFeature(plugin);
-        this.people = new PeopleFeature(plugin);
     }
 
     async lintProperties(): Promise<void> {
@@ -72,9 +79,6 @@ export class PropertiesFeature {
                     toReview.add('audioSrc');
                 }
 
-                for (const issue of validatePropertyState(fm, file.path)) {
-                    toReview.add(issue.property);
-                }
             });
 
             if (toReview.size > 0) {
@@ -92,8 +96,16 @@ export class PropertiesFeature {
         new Notice(`속성 ${cleanedCount}개를 정리했고, 파일 ${reviewCount}개는 검토가 필요합니다.`);
     }
 
-    async insertBaseProperties(initialItems: string[] = []): Promise<void> {
-        await this.base.insertBaseProperties(initialItems);
+    async configurePublishNote(): Promise<void> {
+        await this.publishNote.configurePublishNote();
+    }
+
+    async editTopics(): Promise<void> {
+        await this.publishNote.editTopics();
+    }
+
+    async migrateBaseProperties(): Promise<void> {
+        await this.baseMigration.migrateBaseProperties();
     }
 
     insertYoutubeProperties(): void {
@@ -102,21 +114,5 @@ export class PropertiesFeature {
 
     insertAudioProperties(): void {
         this.audio.insertAudioProperties();
-    }
-
-    insertTeacherProperties(): void {
-        this.people.insertTeacherProperties();
-    }
-
-    insertTranslatorProperties(): void {
-        this.people.insertTranslatorProperties();
-    }
-
-    insertQuestionerProperties(): void {
-        this.people.insertQuestionerProperties();
-    }
-
-    insertWriterProperties(): void {
-        this.people.insertWriterProperties();
     }
 }

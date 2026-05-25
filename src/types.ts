@@ -1,13 +1,3 @@
-export type FrontmatterValue =
-    | string
-    | number
-    | boolean
-    | null
-    | FrontmatterValue[]
-    | { [key: string]: FrontmatterValue };
-
-export type FrontmatterData = Record<string, FrontmatterValue>;
-
 export interface ATOZSettings {
     CertainMdPath: string;
     isCursorCenterEnabled: boolean;
@@ -40,11 +30,6 @@ export interface SymbolItem {
 export interface SwitcherItem {
     display: string;
     path: string;
-}
-
-export interface ParsedDocument {
-    frontmatter: FrontmatterData;
-    body: string;
 }
 
 export const DEFAULT_SETTINGS: ATOZSettings = {
