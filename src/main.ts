@@ -155,7 +155,6 @@ export default class ATOZVER6Plugin extends Plugin {
 
         this.addCommand({ id: 'configure-publish-note', name: '게시 노트 설정', icon: 'lucide-table-of-contents', callback: () => void this.properties.configurePublishNote() });
         this.addCommand({ id: 'edit-topics', name: '주제어 편집', icon: 'lucide-tags', callback: () => void this.properties.editTopics() });
-        this.addCommand({ id: 'migrate-base-properties', name: '기존 속성 이전', icon: 'lucide-list-restart', callback: () => void this.properties.migrateBaseProperties() });
         this.addCommand({ id: 'insert-youtube-properties', name: '유튜브 속성 삽입', icon: 'lucide-youtube', callback: () => this.properties.insertYoutubeProperties() });
         this.addCommand({ id: 'insert-audio-properties', name: '오디오 속성 삽입', icon: 'lucide-file-audio', callback: () => this.properties.insertAudioProperties() });
         this.addCommand({ id: 'lint-properties', name: '속성을 형식에 맞게 정리', icon: 'lucide-list-x', callback: () => void this.properties.lintProperties() });

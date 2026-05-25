@@ -1,14 +1,12 @@
 import { Notice } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
 import { AudioFeature } from './Audio';
-import { BaseMigrationFeature } from './BaseMigration';
 import { PublishNoteFeature } from './PublishNote';
 import { YoutubeFeature } from './Youtube';
 
 type FrontmatterRecord = Record<string, unknown>;
 
 const ALLOWED_PROPERTIES = new Set([
-    'base',
     'date',
     'topics',
     'type',
@@ -17,11 +15,6 @@ const ALLOWED_PROPERTIES = new Set([
     'youtubeId',
     'audioSrc',
     'audioTitle',
-    // Legacy fields are removed by the explicit migration command, not lint.
-    'teacher',
-    'translator',
-    'questioner',
-    'writer',
 ]);
 
 function isEmptyProperty(value: unknown): boolean {
@@ -31,13 +24,11 @@ function isEmptyProperty(value: unknown): boolean {
 
 export class PropertiesFeature {
     private publishNote: PublishNoteFeature;
-    private baseMigration: BaseMigrationFeature;
     private youtube: YoutubeFeature;
     private audio: AudioFeature;
 
     constructor(private plugin: ATOZVER6Plugin) {
         this.publishNote = new PublishNoteFeature(plugin);
-        this.baseMigration = new BaseMigrationFeature(plugin);
         this.youtube = new YoutubeFeature(plugin);
         this.audio = new AudioFeature(plugin);
     }
@@ -102,10 +93,6 @@ export class PropertiesFeature {
 
     async editTopics(): Promise<void> {
         await this.publishNote.editTopics();
-    }
-
-    async migrateBaseProperties(): Promise<void> {
-        await this.baseMigration.migrateBaseProperties();
     }
 
     insertYoutubeProperties(): void {
