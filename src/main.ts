@@ -13,7 +13,6 @@ import { PropertiesFeature } from './features/Properties';
 import { SelectionFeature } from './features/Selection';
 import { SnippetsSuggestions } from './features/Snippets';
 import { SymbolsFeature, SymbolSuggestions } from './features/Symbols';
-import { TimestampFeature } from './features/Timestamp';
 import { WorkFeature } from './features/Work';
 import { ATOZSettingTab } from './setting';
 import { ATOZSettings, DEFAULT_SETTINGS } from './types';
@@ -34,7 +33,6 @@ export default class ATOZVER6Plugin extends Plugin {
     cutCreateNewMd!: CutCreateNewMdFeature;
     projectVisibility!: ProjectVisibility;
     mobile!: MobileFeature;
-    timestamp!: TimestampFeature;
 
     topicCandidates: string[] = [];
     private saveTimer: number | null = null;
@@ -56,7 +54,6 @@ export default class ATOZVER6Plugin extends Plugin {
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.projectVisibility = new ProjectVisibility(this);
         this.mobile = new MobileFeature(this);
-        this.timestamp = new TimestampFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -161,8 +158,6 @@ export default class ATOZVER6Plugin extends Plugin {
 
         this.addCommand({ id: 'expand-selection-left-end', name: '선택 범위 행 시작까지 늘리기', icon: 'lucide-chevrons-left', editorCallback: (editor: Editor) => this.selection.expandLeftEnd(editor) });
         this.addCommand({ id: 'expand-selection-right-end', name: '선택 범위 행 끝까지 늘리기', icon: 'lucide-chevrons-right', editorCallback: (editor: Editor) => this.selection.expandRightEnd(editor) });
-
-        this.addCommand({ id: 'merge-timestamp-lines', name: '타임스탬프 행 병합', editorCallback: (editor: Editor) => this.timestamp.mergeTimestampLines(editor) });
 
         this.addCommand({ id: 'open-work-file', name: '작업 문서 열기', callback: () => void this.work.openWorkFile() });
         this.addCommand({ id: 'open-later-file', name: '보관 문서 열기', callback: () => void this.work.openLaterFile() });
