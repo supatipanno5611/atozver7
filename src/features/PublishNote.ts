@@ -18,6 +18,27 @@ function sortTopics(topics: string[]): void {
     topics.sort((a, b) => a.localeCompare(b));
 }
 
+function normalizeParentRef(value: unknown, projectPath: string): string | null {
+    if (typeof value !== 'string') return null;
+
+    let parent = value.trim().replace(/\\/g, '/');
+    const wikiLink = parent.match(/^\[\[([^\]|#^\n]+)\]\]$/);
+    if (parent.startsWith('[[')) {
+        const linkTarget = wikiLink?.[1];
+        if (!linkTarget) return null;
+        parent = linkTarget.trim();
+    }
+
+    if (parent.toLowerCase().endsWith('.md')) parent = parent.slice(0, -'.md'.length);
+    if (parent === projectPath) return '';
+    if (parent.startsWith(`${projectPath}/`)) parent = parent.slice(projectPath.length + 1);
+    return parent;
+}
+
+function parentLinkForFile(file: TFile): string {
+    return `[[${file.path.slice(0, -'.md'.length)}]]`;
+}
+
 export class PublishNoteFeature {
     constructor(private plugin: ATOZVER6Plugin) {}
 
@@ -154,31 +175,46 @@ export class PublishNoteFeature {
         }
 
         new ParentSelectModal(this.plugin.app, parents, (parent) => {
-            const parentValue = parent.path.slice(`${projectPath}/`.length, -'.md'.length);
-            const nextOrder = this.getNextOrder(parentValue, projectPath);
+            const parentValue = parentLinkForFile(parent);
+            const parentRef = normalizeParentRef(parentValue, projectPath);
+            if (parentRef === null) {
+                new Notice('목차 문서 링크를 해석할 수 없습니다.');
+                return;
+            }
+            const nextOrder = this.getNextOrder(parentRef, projectPath);
             new OrderInputModal(this.plugin.app, nextOrder, (order) => {
-                void this.saveSeriesPost(file, parentValue, order, projectPath);
+                void this.saveSeriesPost(file, parentValue, parentRef, order, projectPath);
             }).open();
         }).open();
     }
 
-    private getNextOrder(parent: string, projectPath: string): number {
+    private getNextOrder(parentRef: string, projectPath: string): number {
         let maxOrder = 0;
         for (const file of this.plugin.app.vault.getMarkdownFiles()) {
             if (!file.path.startsWith(`${projectPath}/`)) continue;
             const fm = this.getFrontmatter(file);
-            if (fm.parent === parent && typeof fm.order === 'number' && Number.isInteger(fm.order)) {
+            if (
+                normalizeParentRef(fm.parent, projectPath) === parentRef &&
+                typeof fm.order === 'number' &&
+                Number.isInteger(fm.order)
+            ) {
                 maxOrder = Math.max(maxOrder, fm.order);
             }
         }
         return maxOrder + 1;
     }
 
-    private async saveSeriesPost(file: TFile, parent: string, order: number, projectPath: string): Promise<void> {
+    private async saveSeriesPost(
+        file: TFile,
+        parent: string,
+        parentRef: string,
+        order: number,
+        projectPath: string,
+    ): Promise<void> {
         const hasDuplicate = this.plugin.app.vault.getMarkdownFiles().some((candidate) => {
             if (candidate.path === file.path || !candidate.path.startsWith(`${projectPath}/`)) return false;
             const fm = this.getFrontmatter(candidate);
-            return fm.parent === parent && fm.order === order;
+            return normalizeParentRef(fm.parent, projectPath) === parentRef && fm.order === order;
         });
         if (hasDuplicate) {
             new Notice('같은 목차에 이미 사용 중인 순번입니다.');
