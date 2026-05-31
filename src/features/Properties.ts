@@ -1,4 +1,4 @@
-import { Notice } from 'obsidian';
+import { Notice, moment } from 'obsidian';
 import type ATOZVER6Plugin from '../main';
 import { AudioFeature } from './Audio';
 import { PublishNoteFeature } from './PublishNote';
@@ -93,6 +93,44 @@ export class PropertiesFeature {
 
     async editTopics(): Promise<void> {
         await this.publishNote.editTopics();
+    }
+
+    async insertTodayDate(): Promise<void> {
+        const activeFile = this.plugin.app.workspace.getActiveFile();
+        if (!activeFile || activeFile.extension !== 'md') {
+            new Notice('활성 마크다운 파일이 없습니다.');
+            return;
+        }
+
+        let alreadyExists = false;
+        await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+            const fm = frontmatter as FrontmatterRecord;
+            if (fm.date !== undefined) {
+                alreadyExists = true;
+                return;
+            }
+            fm.date = moment().format('YYYY-MM-DD');
+        });
+
+        if (alreadyExists) {
+            new Notice('이미 date 속성이 있습니다.');
+            return;
+        }
+        new Notice('오늘 날짜 속성을 삽입했습니다.');
+    }
+
+    async updateTodayDate(): Promise<void> {
+        const activeFile = this.plugin.app.workspace.getActiveFile();
+        if (!activeFile || activeFile.extension !== 'md') {
+            new Notice('활성 마크다운 파일이 없습니다.');
+            return;
+        }
+
+        await this.plugin.app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+            const fm = frontmatter as FrontmatterRecord;
+            fm.date = moment().format('YYYY-MM-DD');
+        });
+        new Notice('date 속성을 오늘 날짜로 갱신했습니다.');
     }
 
     insertYoutubeProperties(): void {

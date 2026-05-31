@@ -3,8 +3,10 @@ import type ATOZVER6Plugin from '../main';
 
 type FrontmatterRecord = Record<string, unknown>;
 type PublishType = '일반 게시글' | '일상 게시글' | '목차 문서' | '시리즈 게시글';
+type PublishResetChoice = '초기화하고 다시 설정' | '취소';
 
 const PUBLISH_TYPES: PublishType[] = ['일반 게시글', '일상 게시글', '목차 문서', '시리즈 게시글'];
+const PUBLISH_RESET_CHOICES: PublishResetChoice[] = ['초기화하고 다시 설정', '취소'];
 const NEW_ITEM_PREFIX = "+ '";
 const NEW_ITEM_SUFFIX = "' 추가";
 const DONE_LABEL = '완료';
@@ -75,28 +77,38 @@ export class PublishNoteFeature {
             return;
         }
 
-        const frontmatter = this.getFrontmatter(activeFile);
-        if (frontmatter.topics !== undefined) {
-            this.openTopicEditor();
-            return;
-        }
-        if (frontmatter.type === 'index') {
-            new Notice('이미 목차 문서입니다.');
-            return;
-        }
-        if (frontmatter.date !== undefined || frontmatter.parent !== undefined || frontmatter.order !== undefined) {
-            new Notice('이미 일부 게시 속성이 있습니다. 수동으로 확인해주세요.');
+        if (this.hasPublishProperties(activeFile)) {
+            new PublishResetModal(this.plugin.app, (choice) => {
+                if (choice === '취소') {
+                    new Notice('게시 노트 설정을 취소했습니다.');
+                    return;
+                }
+                this.continueConfigurePublishNote(activeFile, projectPath);
+            }).open();
             return;
         }
 
+        this.continueConfigurePublishNote(activeFile, projectPath);
+    }
+
+    private continueConfigurePublishNote(activeFile: TFile, projectPath: string): void {
         if (this.isDirectOrdinaryFile(activeFile, projectPath)) {
-            await this.configurePost(activeFile);
+            void this.configurePost(activeFile, '일상 게시글 속성을 설정했습니다.');
             return;
         }
 
         new PublishTypeModal(this.plugin.app, (type) => {
             void this.applyPublishType(activeFile, projectPath, type);
         }).open();
+    }
+
+    private hasPublishProperties(file: TFile): boolean {
+        const frontmatter = this.getFrontmatter(file);
+        return frontmatter.date !== undefined ||
+            frontmatter.topics !== undefined ||
+            frontmatter.type !== undefined ||
+            frontmatter.parent !== undefined ||
+            frontmatter.order !== undefined;
     }
 
     private getFrontmatter(file: TFile): FrontmatterRecord {
@@ -110,18 +122,22 @@ export class PublishNoteFeature {
 
     private async applyPublishType(file: TFile, projectPath: string, type: PublishType): Promise<void> {
         if (type === '일반 게시글') {
-            await this.configurePost(file);
+            await this.configurePost(file, '일반 게시글 속성을 설정했습니다.');
             return;
         }
         if (type === '일상 게시글') {
             const movedFile = await this.moveToOrdinary(file, projectPath);
-            if (movedFile) await this.configurePost(movedFile);
+            if (movedFile) await this.configurePost(movedFile, '일상 게시글 속성을 설정했습니다.');
             return;
         }
         if (type === '목차 문서') {
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 const fm = frontmatter as FrontmatterRecord;
                 fm.type = 'index';
+                delete fm.date;
+                delete fm.topics;
+                delete fm.parent;
+                delete fm.order;
             });
             new Notice('목차 문서로 설정했습니다.');
             return;
@@ -130,13 +146,16 @@ export class PublishNoteFeature {
         this.selectSeriesParent(file, projectPath);
     }
 
-    private async configurePost(file: TFile): Promise<void> {
+    private async configurePost(file: TFile, notice: string): Promise<void> {
         await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
             const fm = frontmatter as FrontmatterRecord;
-            if (fm.date === undefined) fm.date = moment().format('YYYY-MM-DD');
+            fm.date = moment().format('YYYY-MM-DD');
             if (fm.topics === undefined) fm.topics = [];
+            delete fm.type;
+            delete fm.parent;
+            delete fm.order;
         });
-        this.openTopicEditor();
+        new Notice(notice);
     }
 
     private async moveToOrdinary(file: TFile, projectPath: string): Promise<TFile | null> {
@@ -224,11 +243,12 @@ export class PublishNoteFeature {
         await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
             const fm = frontmatter as FrontmatterRecord;
             fm.date = moment().format('YYYY-MM-DD');
-            fm.topics = [];
+            if (fm.topics === undefined) fm.topics = [];
             fm.parent = parent;
             fm.order = order;
+            delete fm.type;
         });
-        this.openTopicEditor();
+        new Notice('시리즈 게시글 속성을 설정했습니다.');
     }
 
     private openTopicEditor(): void {
@@ -253,6 +273,26 @@ class PublishTypeModal extends SuggestModal<PublishType> {
     }
 
     onChooseSuggestion(value: PublishType): void {
+        this.onSelect(value);
+    }
+}
+
+class PublishResetModal extends SuggestModal<PublishResetChoice> {
+    constructor(app: App, private onSelect: (choice: PublishResetChoice) => void) {
+        super(app);
+        this.setPlaceholder('기존 게시 속성을 초기화할까요?');
+    }
+
+    getSuggestions(query: string): PublishResetChoice[] {
+        const normalized = query.trim().toLowerCase();
+        return PUBLISH_RESET_CHOICES.filter((choice) => choice.toLowerCase().includes(normalized));
+    }
+
+    renderSuggestion(value: PublishResetChoice, el: HTMLElement): void {
+        el.setText(value);
+    }
+
+    onChooseSuggestion(value: PublishResetChoice): void {
         this.onSelect(value);
     }
 }
