@@ -3,10 +3,10 @@ import type ATOZVER6Plugin from '../main';
 
 type FrontmatterRecord = Record<string, unknown>;
 type PublishType = '일반 게시글' | '일상 게시글' | '목차 문서' | '시리즈 게시글';
-type PublishResetChoice = '초기화하고 다시 설정' | '취소';
+type PublishResetChoice = '초기화' | '취소';
 
 const PUBLISH_TYPES: PublishType[] = ['일반 게시글', '일상 게시글', '목차 문서', '시리즈 게시글'];
-const PUBLISH_RESET_CHOICES: PublishResetChoice[] = ['초기화하고 다시 설정', '취소'];
+const PUBLISH_RESET_CHOICES: PublishResetChoice[] = ['초기화', '취소'];
 const NEW_ITEM_PREFIX = "+ '";
 const NEW_ITEM_SUFFIX = "' 추가";
 const DONE_LABEL = '완료';
@@ -83,7 +83,7 @@ export class PublishNoteFeature {
                     new Notice('게시 노트 설정을 취소했습니다.');
                     return;
                 }
-                this.continueConfigurePublishNote(activeFile, projectPath);
+                void this.resetPublishNote(activeFile, projectPath);
             }).open();
             return;
         }
@@ -118,6 +118,27 @@ export class PublishNoteFeature {
 
     private isDirectOrdinaryFile(file: TFile, projectPath: string): boolean {
         return file.parent?.path === `${projectPath}/ordinary`;
+    }
+
+    private async resetPublishNote(file: TFile, projectPath: string): Promise<void> {
+        const targetPath = `${projectPath}/${file.name}`;
+        if (targetPath !== file.path && this.plugin.app.vault.getAbstractFileByPath(targetPath) !== null) {
+            new Notice('프로젝트 폴더에 같은 이름의 노트가 이미 있습니다.');
+            return;
+        }
+
+        if (targetPath !== file.path) {
+            await this.plugin.app.fileManager.renameFile(file, targetPath);
+        }
+        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            const fm = frontmatter as FrontmatterRecord;
+            delete fm.date;
+            delete fm.topics;
+            delete fm.type;
+            delete fm.parent;
+            delete fm.order;
+        });
+        new Notice('게시 속성을 초기화했습니다.');
     }
 
     private async applyPublishType(file: TFile, projectPath: string, type: PublishType): Promise<void> {

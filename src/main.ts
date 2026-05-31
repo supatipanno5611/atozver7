@@ -7,6 +7,7 @@ import { CycleTabFeature } from './features/CycleTab';
 import { ExecutesFeature } from './features/Executes';
 import { HeadingNavigaterFeature } from './features/HeadingNavigater';
 import { MobileFeature } from './features/Mobile';
+import { MoveCurrentFileFeature } from './features/MoveCurrentFile';
 import { MoveCursorFeature } from './features/MoveCursor';
 import { ProjectVisibility } from './features/ProjectVisibility';
 import { PropertiesFeature } from './features/Properties';
@@ -33,6 +34,7 @@ export default class ATOZVER6Plugin extends Plugin {
     cutCreateNewMd!: CutCreateNewMdFeature;
     projectVisibility!: ProjectVisibility;
     mobile!: MobileFeature;
+    moveCurrentFile!: MoveCurrentFileFeature;
 
     topicCandidates: string[] = [];
     private saveTimer: number | null = null;
@@ -54,6 +56,7 @@ export default class ATOZVER6Plugin extends Plugin {
         this.cutCreateNewMd = new CutCreateNewMdFeature(this);
         this.projectVisibility = new ProjectVisibility(this);
         this.mobile = new MobileFeature(this);
+        this.moveCurrentFile = new MoveCurrentFileFeature(this);
 
         this.addSettingTab(new ATOZSettingTab(this.app, this));
         this.registerRibbonIcon();
@@ -149,6 +152,7 @@ export default class ATOZVER6Plugin extends Plugin {
 
         this.addCommand({ id: 'toggle-project-folder-visibility', name: '프로젝트 폴더 숨김 토글', icon: 'lucide-folder-sync', callback: () => void this.projectVisibility.toggleProjectFolderHidden() });
         this.addCommand({ id: 'toggle-mobile-toolbar', name: '모바일 툴바 숨김 토글', icon: 'lucide-panel-bottom', callback: () => this.mobile.toggleMobileToolbarHidden() });
+        this.addCommand({ id: 'move-current-file', name: '현재 파일 이동', icon: 'lucide-folder-input', callback: () => this.moveCurrentFile.moveCurrentFile() });
 
         this.addCommand({ id: 'configure-publish-note', name: '게시 노트 설정', icon: 'lucide-table-of-contents', callback: () => void this.properties.configurePublishNote() });
         this.addCommand({ id: 'edit-topics', name: '주제어 편집', icon: 'lucide-tags', callback: () => void this.properties.editTopics() });
